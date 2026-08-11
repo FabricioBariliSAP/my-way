@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guia de Uso — SAP Support Investigation Tool</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3347;
+    --accent: #4f7cff; --success: #3ecf8e; --warning: #f59e0b; --danger: #ef4444;
+    --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+    --radius: 8px; --font: 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Cascadia Code', 'Consolas', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.7; }
+
+  /* ── Layout ── */
+  .layout { display: flex; min-height: 100vh; }
+  nav { width: 260px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 24px 0; }
+  main { flex: 1; max-width: 820px; padding: 48px 56px; }
+
+  /* ── Nav ── */
+  .nav-logo { padding: 0 20px 20px; font-size: 13px; font-weight: 700; color: var(--accent);
+    border-bottom: 1px solid var(--border); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .nav-section { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--text3); padding: 12px 20px 4px; }
+  nav a { display: block; padding: 6px 20px; font-size: 13px; color: var(--text2);
+    text-decoration: none; border-left: 2px solid transparent; transition: all 0.15s; }
+  nav a:hover { color: var(--text); background: var(--surface2); }
+  nav a.active { color: var(--accent); border-left-color: var(--accent); background: #4f7cff11; }
+
+  /* ── Typography ── */
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  h2 { font-size: 20px; font-weight: 700; margin: 48px 0 16px; color: var(--text);
+    padding-bottom: 10px; border-bottom: 1px solid var(--border); scroll-margin-top: 24px; }
+  h3 { font-size: 15px; font-weight: 700; margin: 28px 0 10px; color: var(--text); }
+  h4 { font-size: 13px; font-weight: 700; margin: 20px 0 6px; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.8px; }
+  p { color: var(--text2); font-size: 14px; margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; color: var(--text2); font-size: 14px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; }
+  strong { color: var(--text); }
+  code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-family: var(--mono); font-size: 12px; color: #7dd3fc; }
+
+  /* ── Hero ── */
+  .hero { background: linear-gradient(135deg, #1a1d27, #22263a); border: 1px solid var(--border);
+    border-radius: 12px; padding: 32px; margin-bottom: 40px; }
+  .hero p { margin: 0; font-size: 15px; color: var(--text2); }
+  .hero h1 { margin-bottom: 12px; }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 16px; }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .card-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .card-sm { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; }
+  .card-sm h4 { margin-top: 0; }
+
+  /* ── Steps ── */
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li { counter-increment: step; display: flex; gap: 16px; margin-bottom: 20px; }
+  .steps li::before { content: counter(step); background: var(--accent); color: #fff;
+    font-weight: 700; font-size: 12px; border-radius: 50%; min-width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .steps li div { flex: 1; }
+  .steps li strong { display: block; margin-bottom: 2px; color: var(--text); font-size: 14px; }
+  .steps li p { margin: 0; }
+
+  /* ── Badges ── */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+    border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .badge-blue { background: #4f7cff22; color: #7ca3ff; border: 1px solid #4f7cff44; }
+  .badge-green { background: #3ecf8e22; color: #6ee7b7; border: 1px solid #3ecf8e44; }
+  .badge-yellow { background: #f59e0b22; color: #fbbf24; border: 1px solid #f59e0b44; }
+  .badge-red { background: #ef444422; color: #f87171; border: 1px solid #ef444444; }
+  .badge-purple { background: #7c5fff22; color: #a78bff; border: 1px solid #7c5fff44; }
+
+  /* ── Callouts ── */
+  .tip { background: #4f7cff11; border: 1px solid #4f7cff33; border-radius: var(--radius);
+    padding: 14px 16px; margin: 16px 0; font-size: 13px; color: var(--text2); }
+  .tip strong { color: var(--accent); }
+  .warn { background: #f59e0b11; border: 1px solid #f59e0b33; border-radius: var(--radius);
+    padding: 14px 16px; margin: 16px 0; font-size: 13px; color: var(--text2); }
+  .warn strong { color: var(--warning); }
+  .new-badge { display: inline-block; background: #3ecf8e22; color: #3ecf8e; border: 1px solid #3ecf8e44;
+    border-radius: 99px; font-size: 9px; font-weight: 700; padding: 1px 7px; margin-left: 6px;
+    text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle; }
+
+  /* ── Screenshots (mockups) ── */
+  .mockup { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; margin: 20px 0; font-size: 12px; }
+  .mockup-bar { background: var(--surface2); border-bottom: 1px solid var(--border);
+    padding: 8px 14px; font-size: 11px; color: var(--text3); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px; }
+  .mockup-body { padding: 16px; }
+  .mockup-row { display: flex; gap: 8px; align-items: center; padding: 8px 12px;
+    border-radius: 6px; margin-bottom: 4px; font-size: 12px; }
+  .mockup-row.active { background: var(--surface2); border-left: 3px solid var(--accent); }
+  .mockup-row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); }
+  .mockup-row .dot.active { background: var(--accent); }
+  .mockup-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px;
+    border-radius: 6px; font-size: 11px; font-weight: 600; cursor: default; }
+  .mockup-btn.primary { background: var(--accent); color: #fff; }
+  .mockup-btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .mockup-btn.ai { background: linear-gradient(135deg,#4f7cff,#7c5fff); color: #fff; }
+  .mockup-btn.success { background: var(--success); color: #0f1117; }
+
+  /* ── Block type pills ── */
+  .block-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 14px; font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+
+  /* ── Keyboard shortcut ── */
+  kbd { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 2px 7px; font-family: var(--mono); font-size: 11px; color: var(--text); }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Context selector mockup ── */
+  .ctx-mockup { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 16px 0; font-size: 12px; }
+  .ctx-row { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--border); color: var(--text2); }
+  .ctx-row:last-child { border-bottom: none; }
+  .ctx-chk { width: 13px; height: 13px; accent-color: var(--accent); }
+  .ctx-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text3); margin-right: 4px; }
+  .ctx-pill.on { border-color: var(--accent); background: #4f7cff22; color: var(--accent); }
+
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { padding: 32px 24px; }
+    .card-grid { grid-template-columns: 1fr; }
+    .card-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ════════════════════════════════════════════════════
+     NAVIGATION
+═════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-logo">🔍 SAP Investigation</div>
+
+  <div class="nav-section">Introdução</div>
+  <a href="#overview">Visão Geral</a>
+  <a href="#quickstart">Início Rápido</a>
+
+  <div class="nav-section">Cases</div>
+  <a href="#cases-list">Lista de Cases</a>
+  <a href="#case-meta">Metadados do Case</a>
+  <a href="#symptom">Symptom &amp; Repro</a>
+
+  <div class="nav-section">Investigação</div>
+  <a href="#steps">Troubleshooting Steps</a>
+  <a href="#groups">Step Groups</a>
+  <a href="#reorder">Reordenar</a>
+  <a href="#shortid">Referências @ID</a>
+
+  <div class="nav-section">Blocos de Conteúdo</div>
+  <a href="#blocks-text">📝 Text / Highlight</a>
+  <a href="#blocks-sql">🗄 SQL Query</a>
+  <a href="#blocks-sqlresult">📋 SQL Result</a>
+  <a href="#blocks-log">📋 Log</a>
+  <a href="#blocks-table">📊 Table</a>
+  <a href="#blocks-image">🖼 Image</a>
+  <a href="#blocks-video">🎬 Video</a>
+  <a href="#blocks-attachment">📎 Attachment</a>
+
+  <div class="nav-section">IA</div>
+  <a href="#ai-suggest">Sugestão de Steps</a>
+  <a href="#ai-analysis">Análise AI</a>
+  <a href="#ai-kba">KBA / Incident</a>
+  <a href="#ai-guide">Guide (IA)</a>
+  <a href="#ai-prompts">⚙ Configurar Prompts</a>
+  <a href="#rag">RAG &amp; Knowledge Base</a>
+
+  <div class="nav-section">Exportação</div>
+  <a href="#export-xml">XML / ZIP</a>
+  <a href="#export-skill">✅ Caso Resolvido</a>
+  <a href="#import">Importar</a>
+</nav>
+
+<!-- ════════════════════════════════════════════════════
+     MAIN CONTENT
+═════════════════════════════════════════════════════ -->
+<main>
+
+<!-- ── HERO ─────────────────────────────────────── -->
+<div class="hero">
+  <h1>📘 Guia de Uso</h1>
+  <p>Manual completo da <strong>SAP Support Investigation Tool</strong> — como criar cases, documentar investigações, usar IA para sugestões e exportar resultados.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     VISÃO GERAL
+═════════════════════════════════════════════════════ -->
+<h2 id="overview">Visão Geral</h2>
+
+<p>A ferramenta é dividida em duas telas principais:</p>
+
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>🗂 index.html</h4>
+    <p><strong>Lista de Cases</strong> — tela inicial. Exibe todos os cases salvos em tabela, permite criar novos, importar arquivos e pesquisar.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🔬 CASE_HANDLING.html</h4>
+    <p><strong>Editor de Case</strong> — tela de investigação. Sidebar com steps à esquerda, editor de blocos de conteúdo à direita, IA integrada.</p>
+  </div>
+</div>
+
+<p>Todos os dados são salvos <strong>localmente no navegador</strong> (localStorage). Nada é enviado a um servidor externo, exceto as chamadas à IA (que passam pelo proxy local na porta 3000).</p>
+
+<div class="tip">
+  <strong>💡 Dica:</strong> O servidor Node.js (<code>server.js</code>) deve estar rodando na porta 3000 para que a IA e os exports funcionem. Inicie com <code>node server.js</code> no terminal.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     INÍCIO RÁPIDO
+═════════════════════════════════════════════════════ -->
+<h2 id="quickstart">Início Rápido</h2>
+
+<ol class="steps">
+  <li>
+    <div>
+      <strong>Inicie o servidor</strong>
+      <p>Abra o terminal na pasta do projeto e execute <code>node server.js</code>. Acesse <code>http://localhost:3000</code> no navegador.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Crie um novo case</strong>
+      <p>Na tela inicial, clique em <span class="mockup-btn primary">＋ New Case</span>. Você será levado ao editor.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Preencha os metadados</strong>
+      <p>No painel esquerdo, informe o <strong>Case ID</strong>, <strong>Customer</strong>, ambiente, banco de dados, arquitetura e versão afetada.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Descreva o Symptom e o Repro</strong>
+      <p>Descreva o que o cliente observa no campo <strong>Symptom</strong> e os passos para reproduzir em <strong>Steps to Reproduce</strong>.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Adicione Troubleshooting Steps</strong>
+      <p>Clique em <span class="mockup-btn primary">＋ Step</span> para criar o primeiro passo de investigação e adicione blocos de conteúdo.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Salve com Ctrl+S</strong>
+      <p>O case é salvo automaticamente a cada mudança, mas você pode forçar com <kbd>Ctrl</kbd>+<kbd>S</kbd>.</p>
+    </div>
+  </li>
+</ol>
+
+<!-- ══════════════════════════════════════════════════
+     LISTA DE CASES
+═════════════════════════════════════════════════════ -->
+<h2 id="cases-list">Lista de Cases</h2>
+
+<p>A tela inicial (<code>index.html</code>) exibe todos os cases salvos no navegador em formato de tabela.</p>
+
+<div class="mockup">
+  <div class="mockup-bar">Tela inicial — Lista de Cases</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <span class="mockup-btn ghost">⬆ Import</span>
+      <span class="mockup-btn primary">＋ New Case</span>
+    </div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead>
+        <tr style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.8px">
+          <th style="padding:6px 10px;text-align:left">Case ID ↕</th>
+          <th style="padding:6px 10px;text-align:left">Cliente ↕</th>
+          <th style="padding:6px 10px;text-align:left">Criado em ↕</th>
+          <th style="padding:6px 10px;text-align:left">Última atualização ↓</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-top:1px solid var(--border);color:var(--text2)">
+          <td style="padding:10px;color:var(--text);font-weight:600">INC-2024-001</td>
+          <td style="padding:10px">Acme Corp</td>
+          <td style="padding:10px;color:var(--text3)">06/08/2024 09:12</td>
+          <td style="padding:10px;color:var(--text3)">06/08/2024 14:55</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<h3>Ações disponíveis</h3>
+<ul>
+  <li><strong>Abrir case:</strong> Clique em qualquer linha da tabela para abrir o case no editor.</li>
+  <li><strong>Deletar case:</strong> Passe o mouse sobre a linha — um botão <code>✕</code> aparece à direita. Clique nele e confirme.</li>
+  <li><strong>Ordenar:</strong> Clique nos cabeçalhos das colunas para ordenar por Case ID, Cliente ou data.</li>
+  <li><strong>Buscar:</strong> Use o campo de busca no topo para filtrar por ID ou nome do cliente.</li>
+  <li><strong>Importar:</strong> Clique em <span class="mockup-btn ghost">⬆ Import</span> ou arraste um arquivo <code>.zip</code> ou <code>.xml</code> para a área de drop na parte inferior da tela.</li>
+</ul>
+
+<!-- ══════════════════════════════════════════════════
+     BARRA SUPERIOR DO EDITOR
+═════════════════════════════════════════════════════ -->
+<h2 id="topbar">Barra Superior do Editor</h2>
+
+<p>A topbar do editor de case contém ações globais do case:</p>
+
+<div class="mockup">
+  <div class="mockup-bar">Topbar — Editor de Case</div>
+  <div class="mockup-body" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <span class="mockup-btn ghost">← Cases</span>
+    <span style="font-size:12px;color:var(--text2)">🔍 SAP Support Investigation</span>
+    <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="mockup-btn ghost">⚙ Prompts</span>
+      <span class="mockup-btn ghost">👁 View</span>
+      <span class="mockup-btn ghost">⬆ Import</span>
+      <span class="mockup-btn ghost">🗂 Cases</span>
+      <span class="mockup-btn ghost">💾 Save</span>
+      <span class="mockup-btn success">✅ Case Resolved</span>
+      <span class="mockup-btn primary">⬇ Export / Generate</span>
+    </span>
+  </div>
+</div>
+
+<ul>
+  <li><strong>← Cases:</strong> Volta para a lista de cases (<code>index.html</code>).</li>
+  <li><strong>⚙ Prompts:</strong> Abre o modal de configuração de prompts de IA. Ver <a href="#ai-prompts" style="color:var(--accent)">⚙ Configurar Prompts</a>.</li>
+  <li><strong>👁 View:</strong> Abre uma visualização em modo leitura do case atual (sem os campos de edição).</li>
+  <li><strong>⬆ Import:</strong> Importa um arquivo <code>.zip</code> ou <code>.xml</code> no case atual.</li>
+  <li><strong>🗂 Cases:</strong> Abre um modal de importação rápida para carregar outro case.</li>
+  <li><strong>💾 Save:</strong> Salva manualmente (equivalente a <kbd>Ctrl</kbd>+<kbd>S</kbd>).</li>
+  <li><strong>✅ Case Resolved:</strong> Exporta o case como Skill para a knowledge base. Ver <a href="#export-skill" style="color:var(--accent)">Caso Resolvido</a>.</li>
+  <li><strong>⬇ Export / Generate:</strong> Abre o modal de exportação e geração de IA.</li>
+</ul>
+
+<!-- ══════════════════════════════════════════════════
+     METADADOS DO CASE
+═════════════════════════════════════════════════════ -->
+<h2 id="case-meta">Metadados do Case</h2>
+
+<p>No editor de case, o painel lateral esquerdo contém os metadados. Eles aparecem em todos os exports e são usados como contexto pela IA.</p>
+
+<div class="tip">
+  <strong>💡 Recolher/expandir:</strong> O painel de metadados pode ser recolhido clicando no cabeçalho <strong>Case / Incident</strong> na sidebar. Quando recolhido, o Case ID é exibido como resumo para economizar espaço vertical.
+</div>
+
+<div class="card">
+  <h4>Campos disponíveis</h4>
+  <ul style="margin:0">
+    <li><strong>Case / Incident</strong> — identificador único (ex.: <code>12345678</code>)</li>
+    <li><strong>Customer</strong> — nome do cliente</li>
+    <li><strong>Environment</strong> — PRD, UAT, TST, DEV, SBOX</li>
+    <li><strong>DB</strong> — HANA, Oracle</li>
+    <li><strong>Architecture</strong> — K8s, Legacy</li>
+    <li><strong>Affects Version</strong> — versão do produto afetada (ex.: <code>2311</code>)</li>
+    <li><strong>Symptom</strong> — descrição do problema com bullet automático ao pressionar <kbd>Enter</kbd></li>
+    <li><strong>Steps to Reproduce</strong> — numeração automática ao pressionar <kbd>Enter</kbd></li>
+  </ul>
+</div>
+
+<div class="tip">
+  <strong>💡 Auto-save:</strong> Qualquer alteração salva automaticamente o case no localStorage.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SYMPTOM & STEPS TO REPRODUCE
+═════════════════════════════════════════════════════ -->
+<h2 id="symptom">Symptom &amp; Steps to Reproduce</h2>
+
+<p>Dois campos de texto livre no painel lateral, abaixo dos metadados. São considerados em todas as chamadas de IA (salvo configuração contrária em <a href="#ai-prompts" style="color:var(--accent)">⚙ Prompts</a>).</p>
+
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>🩺 Symptom</h4>
+    <p>Descreva o que o cliente observa. Pressione <kbd>Enter</kbd> para adicionar um novo item — o bullet <code>•</code> é inserido automaticamente.</p>
+    <div style="background:var(--bg);border-radius:6px;padding:10px;font-size:12px;color:var(--text2);margin-top:8px;font-family:var(--mono)">
+      • Report does not load<br>
+      • Error message: HTTP 500<br>
+      • Only affects user XPTO
+    </div>
+  </div>
+  <div class="card-sm">
+    <h4>🔁 Steps to Reproduce</h4>
+    <p>Liste os passos para reproduzir o problema. Pressione <kbd>Enter</kbd> — o próximo número é inserido automaticamente.</p>
+    <div style="background:var(--bg);border-radius:6px;padding:10px;font-size:12px;color:var(--text2);margin-top:8px;font-family:var(--mono)">
+      1. Log in as user XPTO<br>
+      2. Navigate to Reporting<br>
+      3. Click Generate Report
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TROUBLESHOOTING STEPS
+═════════════════════════════════════════════════════ -->
+<h2 id="steps">Troubleshooting Steps</h2>
+
+<p>Os <strong>Troubleshooting Steps</strong> são a espinha dorsal da investigação. Cada step representa uma ação, verificação ou descoberta.</p>
+
+<ol class="steps">
+  <li>
+    <div>
+      <strong>Criar um step</strong>
+      <p>Clique em <span class="mockup-btn primary">＋ Step</span> no cabeçalho da seção de steps na sidebar. Um novo step "New Troubleshooting Step" aparece.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Renomear o step</strong>
+      <p>No editor à direita, clique no campo de título e escreva um nome descritivo, ex.: <em>"Check HANA indexserver logs"</em>.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Definir o tipo de finding</strong>
+      <p>Selecione no dropdown ao lado do título:</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <span class="badge badge-blue">ℹ Info</span>
+        <span class="badge badge-blue">🔎 Clue</span>
+        <span class="badge badge-yellow">⚡ Highlight</span>
+        <span class="badge badge-red">🎯 Root Cause</span>
+      </div>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Adicionar blocos de conteúdo</strong>
+      <p>Na área inferior do editor, escolha o tipo de bloco e clique para adicionar. Veja a seção <a href="#blocks-text" style="color:var(--accent)">Blocos de Conteúdo</a> para detalhes.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Linkar steps relacionados</strong>
+      <p>Clique em 🔗 no cabeçalho do step para abrir o modal de links. Selecione outros steps que se relacionam com este. Eles aparecem no topo do step como chips clicáveis.</p>
+    </div>
+  </li>
+</ol>
+
+<h3>Minimizar o editor do step</h3>
+<p>O editor de cada step pode ser minimizado clicando no botão <code>▾</code> no canto superior direito do cabeçalho. Isso recolhe o conteúdo e libera espaço visual, deixando apenas o cabeçalho com título e tipo de finding visíveis.</p>
+
+<!-- ══════════════════════════════════════════════════
+     STEP GROUPS
+═════════════════════════════════════════════════════ -->
+<h2 id="groups">Troubleshooting Step Groups</h2>
+
+<p>Agrupe steps relacionados para organizar a investigação por área (ex.: "Database", "Application Server", "Network").</p>
+
+<ol class="steps">
+  <li>
+    <div>
+      <strong>Criar um grupo</strong>
+      <p>Clique em <span class="mockup-btn ghost">＋ Grupo</span> no cabeçalho da seção de steps na sidebar. Digite o nome do grupo quando solicitado.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Adicionar step ao grupo</strong>
+      <p>Com um step selecionado, use o <strong>dropdown de grupo</strong> no cabeçalho do editor (ao lado do tipo de finding) para mover o step para um grupo. Ou clique no <code>＋</code> ao lado do grupo na sidebar para criar um step diretamente dentro dele.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Renomear o grupo</strong>
+      <p>Clique diretamente no título do grupo na sidebar para editá-lo. Pressione <kbd>Enter</kbd> ou clique fora para confirmar.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Recolher/expandir o grupo</strong>
+      <p>Clique no ícone <code>▾</code> ao lado do nome do grupo para recolhê-lo. Clique novamente para expandir.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Deletar o grupo</strong>
+      <p>Clique no ícone 🗑 ao lado do grupo. Os steps do grupo são mantidos, mas ficam sem grupo (desassociados).</p>
+    </div>
+  </li>
+</ol>
+
+<!-- ══════════════════════════════════════════════════
+     REORDENAR
+═════════════════════════════════════════════════════ -->
+<h2 id="reorder">Reordenar Steps e Grupos</h2>
+
+<p>Tanto steps quanto grupos podem ser reordenados diretamente pela sidebar usando os botões de seta.</p>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;gap:16px">
+    <div style="font-size:24px;flex-shrink:0">↕</div>
+    <div>
+      <p style="margin:0"><strong>Botões ▲ ▼</strong> aparecem à direita de cada step e grupo na sidebar. Clique para mover para cima ou para baixo.</p>
+      <p style="margin:8px 0 0">Steps dentro de um grupo só se movem entre os outros steps do mesmo grupo. Grupos se movem como um bloco inteiro — todos os seus steps se movem junto.</p>
+    </div>
+  </div>
+</div>
+
+<div class="tip">
+  <strong>💡 Ordem importa:</strong> A numeração dos steps (S1, S2…) é calculada a partir da ordem de exibição: steps sem grupo primeiro, depois os grupos em ordem, com os steps dentro de cada grupo.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     REFERÊNCIAS @ID
+═════════════════════════════════════════════════════ -->
+<h2 id="shortid">Referências @ID entre Steps</h2>
+
+<p>Cada step possui um identificador curto visível na sidebar e no cabeçalho do editor (<code>@S1</code>, <code>@S2</code>, etc.). Você pode referenciar steps em qualquer bloco de texto.</p>
+
+<h3>Como usar</h3>
+<ol class="steps">
+  <li>
+    <div>
+      <strong>Digite <code>@</code> em qualquer bloco de texto</strong>
+      <p>Um popup de autocomplete aparece listando os steps disponíveis.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Selecione o step</strong>
+      <p>Use <kbd>↑</kbd> <kbd>↓</kbd> para navegar no popup, <kbd>Enter</kbd> ou <kbd>Tab</kbd> para inserir, <kbd>Esc</kbd> para fechar.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Na exportação</strong>
+      <p>O <code>@S1</code> é substituído automaticamente por <code>(refer Step S1: "título do step")</code> em todos os exports.</p>
+    </div>
+  </li>
+</ol>
+
+<div class="card">
+  <div style="font-size:13px;color:var(--text2)">Exemplo — no editor você escreve:</div>
+  <div style="background:var(--bg);border-radius:6px;padding:10px;margin:8px 0;font-family:var(--mono);font-size:12px">
+    O erro foi identificado em <span style="color:var(--accent);font-weight:700">@S3</span>, após a coleta de logs descrita em <span style="color:var(--accent);font-weight:700">@S1</span>.
+  </div>
+  <div style="font-size:13px;color:var(--text2)">No export aparece como:</div>
+  <div style="background:var(--bg);border-radius:6px;padding:10px;margin:8px 0;font-family:var(--mono);font-size:12px;color:var(--text2)">
+    O erro foi identificado em (refer Step S3: "Analyze indexserver crash"), após a coleta de logs descrita em (refer Step S1: "Collect HANA logs").
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     BLOCOS DE CONTEÚDO
+═════════════════════════════════════════════════════ -->
+<h2 id="blocks-text">📝 Blocos de Conteúdo — Text &amp; Highlight</h2>
+
+<p>Cada step pode conter múltiplos <strong>blocos de conteúdo</strong>. Clique nos botões da barra <em>Add Block</em> na parte inferior do editor para adicionar.</p>
+
+<div class="block-pills">
+  <span class="pill">📝 Text</span>
+  <span class="pill">🗄 SQL Query</span>
+  <span class="pill">📋 SQL Result</span>
+  <span class="pill">📋 Log</span>
+  <span class="pill">📊 Table</span>
+  <span class="pill">🖼 Image</span>
+  <span class="pill">🎬 Video</span>
+  <span class="pill">📎 Attachment</span>
+  <span class="pill">⚡ Highlight</span>
+</div>
+
+<h3>📝 Text</h3>
+<p>Editor de texto rico (WYSIWYG) com barra de ferramentas. Suporta <strong>negrito</strong>, <em>itálico</em>, sublinhado, tachado, código inline, blockquote, listas numeradas e com bullets. Use <kbd>Tab</kbd> para indentar.</p>
+
+<h3>⚡ Highlight</h3>
+<p>Idêntico ao bloco Text, mas com fundo destacado em âmbar. Ideal para marcar descobertas importantes. O texto no bloco Highlight aparece em amarelo claro para chamar atenção.</p>
+
+<!-- ── SQL Query ─ -->
+<h2 id="blocks-sql">🗄 SQL Query</h2>
+
+<p>Bloco para colar <strong>queries SQL</strong>. Exibe o conteúdo em fonte monospace com cor azul claro. Não tenta formatar como tabela — apenas armazena o SQL puro.</p>
+
+<div class="card">
+  <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px">Exemplo</div>
+  <div style="background:var(--bg);border-radius:6px;padding:12px;font-family:var(--mono);font-size:12px;color:#7dd3fc;line-height:1.6">
+    SELECT TOP 100 *<br>
+    FROM "_SYS_BI"."BIMC_ALL_CUBES"<br>
+    WHERE SCHEMA_NAME = 'SAPABAP1'<br>
+    ORDER BY CUBE_NAME;
+  </div>
+</div>
+
+<div class="tip">
+  <strong>💡 Exportação:</strong> No export de texto, o SQL Query é exportado como bloco de código <code>```sql</code>.
+</div>
+
+<!-- ── SQL Result ─ -->
+<h2 id="blocks-sqlresult">📋 SQL Result</h2>
+
+<p>Bloco para colar o <strong>resultado de uma query</strong>. Detecta automaticamente se o conteúdo é CSV, TSV ou pipe-separated e exibe como tabela formatada abaixo do textarea.</p>
+
+<ol class="steps">
+  <li>
+    <div>
+      <strong>Cole o resultado da query</strong>
+      <p>Formatos suportados: CSV (vírgula), TSV (tab), ou pipe <code>|</code> (formato padrão de clientes SQL como DBeaver e HDBSQL).</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>A tabela aparece automaticamente</strong>
+      <p>Se o conteúdo for reconhecido como tabular, uma visualização em tabela aparece abaixo do campo de texto com o badge <span class="badge badge-green">⊞ Table auto-detected</span>.</p>
+    </div>
+  </li>
+</ol>
+
+<div class="warn">
+  <strong>⚠️ Atenção:</strong> Se o resultado vier em formato pipe <code>|</code> com separadores de linha como <code>---+---</code>, a ferramenta ignora as linhas separadoras automaticamente. Linhas que começam com SELECT/INSERT/UPDATE são tratadas como SQL puro e não como resultado tabular.
+</div>
+
+<!-- ── Log ─ -->
+<h2 id="blocks-log">📋 Log</h2>
+
+<p>Bloco para colar <strong>entradas de log</strong> (HANA trace, application log, system log, etc.). Exibe em fonte monospace com cor verde clara, facilitando a leitura.</p>
+
+<div class="tip">
+  <strong>💡 Dica:</strong> Cole apenas o trecho relevante do log. Logs muito longos são truncados a 2000 caracteres no contexto enviado à IA para evitar desperdício de tokens.
+</div>
+
+<!-- ── Table ─ -->
+<h2 id="blocks-table">📊 Table</h2>
+
+<p>Bloco de tabela <strong>editável manualmente</strong>. Cole CSV/TSV/pipe no textarea — a tabela é renderizada abaixo. Diferente do SQL Result, este bloco é para dados que você quer documentar sem necessariamente ter uma query associada.</p>
+
+<!-- ── Image ─ -->
+<h2 id="blocks-image">🖼 Image</h2>
+
+<p>Adicione capturas de tela, diagramas ou qualquer imagem ao step. Três formas de adicionar:</p>
+
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>📋 Ctrl+V</h4>
+    <p>Cole diretamente do clipboard. Funciona com screenshots (<kbd>PrtScr</kbd>, Snipping Tool, etc.). Funciona tanto na drop zone focada quanto globalmente se houver um bloco de imagem vazio no step ativo.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🖱 Drag &amp; Drop</h4>
+    <p>Arraste um arquivo de imagem do seu explorador de arquivos diretamente sobre a área de drop do bloco.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🗂 Clique para escolher</h4>
+    <p>Clique na área de drop para abrir o seletor de arquivo. Suporta PNG, JPG, GIF e WebP.</p>
+  </div>
+  <div class="card-sm">
+    <h4>📝 Legenda</h4>
+    <p>Após inserir a imagem, um campo de texto aparece abaixo para adicionar uma legenda descritiva. A legenda aparece no export do Guide.</p>
+  </div>
+</div>
+
+<!-- ── Video ─ -->
+<h2 id="blocks-video">🎬 Video</h2>
+
+<p>Incorpore vídeos diretamente no step. Cole a URL no campo — YouTube e Vimeo são exibidos como player embutido; links diretos de arquivo (<code>.mp4</code>, <code>.webm</code>) usam o player nativo do navegador.</p>
+
+<div class="card">
+  <h4>Formatos suportados</h4>
+  <ul style="margin:0">
+    <li><strong>YouTube:</strong> <code>https://www.youtube.com/watch?v=...</code> ou <code>https://youtu.be/...</code></li>
+    <li><strong>Vimeo:</strong> <code>https://vimeo.com/123456789</code></li>
+    <li><strong>Arquivo direto:</strong> <code>https://exemplo.com/video.mp4</code></li>
+  </ul>
+</div>
+
+<!-- ── Attachment ─ -->
+<h2 id="blocks-attachment">📎 Attachment</h2>
+
+<p>Anexe <strong>qualquer tipo de arquivo</strong> ao step — PDF, Word, Excel, texto, imagem, vídeo, zip, etc. O arquivo é armazenado em base64 no caso.</p>
+
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>Como adicionar</h4>
+    <p>Clique na drop zone ou arraste um arquivo. Todos os tipos de arquivo são aceitos.</p>
+  </div>
+  <div class="card-sm">
+    <h4>Preview automático</h4>
+    <p>Imagens são exibidas diretamente. PDFs são exibidos em iframe embutido. Outros formatos mostram nome e tamanho do arquivo.</p>
+  </div>
+  <div class="card-sm">
+    <h4>⬇ Download</h4>
+    <p>Clique em <strong>Download</strong> para salvar o arquivo anexado localmente.</p>
+  </div>
+  <div class="card-sm">
+    <h4>No ZIP export</h4>
+    <p>Ao exportar como ZIP, imagens do bloco Image são incluídas em <code>attachments/</code>. Arquivos do bloco Attachment são referenciados como metadados no XML.</p>
+  </div>
+</div>
+
+<div class="warn">
+  <strong>⚠️ Tamanho:</strong> Arquivos grandes aumentam significativamente o tamanho do localStorage. Para arquivos muito grandes (acima de alguns MB), prefira referenciar por caminho ou URL em vez de anexar.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     IA — SUGESTÃO DE STEPS
+═════════════════════════════════════════════════════ -->
+<h2 id="ai-suggest">🤖 Sugestão de Steps por IA</h2>
+
+<p>A IA pode sugerir os próximos passos de investigação com base no contexto atual do case e na <a href="#rag" style="color:var(--accent)">knowledge base</a>. O botão 🤖 fica no cabeçalho da seção de steps na sidebar.</p>
+
+<ol class="steps">
+  <li>
+    <div>
+      <strong>Clique em <span class="mockup-btn ai" style="font-size:11px">🤖</span></strong>
+      <p>O modal de sugestões abre e a IA é consultada imediatamente via RAG (servidor).</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Aguarde as sugestões</strong>
+      <p>A IA analisa o Case ID, metadados, Symptom, Steps to Reproduce, steps já existentes e documentos da knowledge base. Em alguns segundos, apresenta uma lista de steps sugeridos com título e justificativa.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Aceite ou rejeite cada sugestão</strong>
+      <p>Cada sugestão tem uma checkbox. Marque as que deseja aceitar e clique em <span class="mockup-btn primary">Add selected</span>. Steps desmarcados são registrados como rejeitados para métricas de efetividade.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Marcar como editado</strong>
+      <p>Após editar um step gerado por IA, clique em <span class="mockup-btn ghost">✏ Mark as edited</span> no banner azul para indicar que o conteúdo foi adaptado.</p>
+    </div>
+  </li>
+</ol>
+
+<div class="tip">
+  <strong>💡 Efetividade:</strong> No tab <strong>📦 Package</strong>, você vê estatísticas de contribuição da IA: quantos steps foram sugeridos, aceitos, editados e rejeitados, com percentual de efetividade.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     IA — ANÁLISE
+═════════════════════════════════════════════════════ -->
+<h2 id="ai-analysis">🤖 Análise por IA</h2>
+
+<p>Na aba <strong>🤖 AI Assist</strong> do modal de exportação, você pode gerar análises completas para o Pulse ticket.</p>
+
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>📋 Full Analysis</h4>
+    <p>Gera as quatro seções do Pulse: Internal Research, External Research, Cause e Solution/Workaround de uma vez só.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🔒 Internal Research</h4>
+    <p>Só a seção interna — detalhes técnicos, sem preocupação com linguagem para cliente.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🌐 External Research</h4>
+    <p>Versão sem dados internos, adequada para compartilhar com o cliente.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🎯 Cause &amp; Solution</h4>
+    <p>Foca em identificar a causa raiz e propor solução/workaround.</p>
+  </div>
+</div>
+
+<p>Você também pode clicar em <span class="mockup-btn ghost">Copy Prompt</span> para copiar o prompt completo com o contexto da investigação e usar em outra ferramenta de IA manualmente.</p>
+
+<!-- ══════════════════════════════════════════════════
+     IA — KBA / INCIDENT
+═════════════════════════════════════════════════════ -->
+<h2 id="ai-kba">🤖 KBA &amp; Incident Message</h2>
+
+<h3>📚 KBA (Knowledge Base Article)</h3>
+<p>Na aba <strong>KBA</strong>, preencha os campos manualmente ou clique em <span class="mockup-btn ai">✦ AI Auto-Fill KBA</span> para a IA preencher automaticamente Symptom, Steps to Reproduce, Cause e Solution com base na investigação. O resultado é retornado em JSON e populado nos campos.</p>
+
+<h3>💬 Incident Message</h3>
+<p>Na aba <strong>Messages</strong>, escolha o público-alvo e clique em <span class="mockup-btn ai">✦ Generate with AI</span>:</p>
+<ul>
+  <li><strong>Technical Engineer</strong> — mensagem técnica detalhada para L2/L3</li>
+  <li><strong>Developer</strong> — focada em comportamento do código, para o time de engineering</li>
+  <li><strong>Swarm</strong> — resumo para sessão colaborativa de troubleshooting</li>
+  <li><strong>Custom</strong> — descreva o público manualmente no campo de texto que aparece</li>
+</ul>
+<p>O botão <span class="mockup-btn ghost">Copy Prompt</span> gera o contexto da investigação (sem SQL/logs por padrão) formatado como prompt para uso externo.</p>
+
+<h3>🚨 Incident (Escalation Fields)</h3>
+<p>Na aba <strong>Incident</strong>, preencha os campos para escalonamento. Os campos são pré-populados com os metadados do case:</p>
+
+<div class="card">
+  <div class="card-grid" style="margin:0">
+    <ul style="margin:0">
+      <li><strong>Description</strong></li>
+      <li><strong>Label</strong></li>
+      <li><strong>Customer Name</strong></li>
+      <li><strong>Tenant ID</strong></li>
+      <li><strong>Environment</strong></li>
+      <li><strong>Affects Version</strong></li>
+    </ul>
+    <ul style="margin:0">
+      <li><strong>DB</strong></li>
+      <li><strong>Architecture</strong></li>
+      <li><strong>Steps to Reproduce</strong></li>
+      <li><strong>Findings</strong></li>
+      <li><strong>What is needed from Engg Team</strong></li>
+      <li><strong>Logs</strong> (seleção por step)</li>
+    </ul>
+  </div>
+</div>
+
+<p><strong>Seleção de Logs:</strong> Se o case tiver blocos de Log, uma lista de checkboxes aparece permitindo selecionar quais logs incluir no escalonamento. Cada log selecionado pode receber uma descrição explicativa.</p>
+
+<p>Clique em <span class="mockup-btn ai">✦ AI Generate Fields</span> para preencher automaticamente Description, Steps to Reproduce, Findings e What is needed. Clique em <span class="mockup-btn ghost">Export Report</span> para gerar o texto formatado para copiar.</p>
+
+<!-- ══════════════════════════════════════════════════
+     IA — GUIDE
+═════════════════════════════════════════════════════ -->
+<h2 id="ai-guide">📖 Guide (Geração de Guia)</h2>
+
+<p>A aba <strong>📖 Guide</strong> permite gerar um guia de investigação completo e exportável. Pode ser gerado automaticamente pela IA ou construído diretamente dos dados da investigação.</p>
+
+<h3>Opções do Guide</h3>
+<div class="card">
+  <ul style="margin:0">
+    <li><strong>Include screenshots &amp; images</strong> — inclui as imagens dos steps no guia</li>
+    <li><strong>Include SQL queries &amp; results</strong> — inclui queries e resultados de SQL</li>
+    <li><strong>Include log excerpts</strong> — inclui trechos de log (limitado a 800 caracteres por bloco)</li>
+    <li><strong>Highlights &amp; Root Cause steps only</strong> — filtra para mostrar apenas steps do tipo Highlight e Root Cause, excluindo Info e Clue</li>
+  </ul>
+</div>
+
+<h3>Botões de ação</h3>
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>✦ AI Generate Guide</h4>
+    <p>A IA recebe o contexto da investigação e gera um guia em HTML estruturado com: Summary, Key Findings, Root Cause, Resolution Steps e Preventive Measures.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🖨 Export as PDF</h4>
+    <p>Usa o print do navegador para gerar um PDF com formatação limpa (fundo branco, tipografia adequada para impressão).</p>
+  </div>
+  <div class="card-sm">
+    <h4>⬇ Download HTML</h4>
+    <p>Baixa o guia como arquivo <code>.html</code> standalone autocontido — pode ser aberto em qualquer navegador sem o servidor.</p>
+  </div>
+  <div class="card-sm">
+    <h4>📋 Copy Text</h4>
+    <p>Copia o conteúdo do guia como texto simples para a área de transferência.</p>
+  </div>
+</div>
+
+<div class="tip">
+  <strong>💡 Dica:</strong> O guia gerado pela IA e o guia gerado dos dados são independentes. Ao clicar em <strong>AI Generate Guide</strong>, o preview mostra o resultado da IA. Ao modificar as opções de filtro, o preview retorna para o guia baseado nos dados.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     IA — CONFIGURAR PROMPTS
+═════════════════════════════════════════════════════ -->
+<h2 id="ai-prompts">⚙ Configurar Prompts de IA <span class="new-badge">Novo</span></h2>
+
+<p>Clique em <span class="mockup-btn ghost">⚙ Prompts</span> na topbar para abrir o modal de configuração. Cada agente de IA tem seu próprio prompt e configuração de contexto.</p>
+
+<h3>Edição de Prompts</h3>
+<p>Cada card exibe o prompt atual em um textarea editável. Edite o texto e clique em <span class="mockup-btn primary">💾 Salvar</span>. O badge <span style="background:#f59e0b22;color:var(--warning);border:1px solid #f59e0b44;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700">✏ Modificado</span> aparece quando o prompt difere do padrão. Use <span class="mockup-btn ghost">↺ Reset</span> por prompt ou <span class="mockup-btn ghost">↺ Restaurar todos os padrões</span> para reverter tudo.</p>
+
+<h3>⚙ Contexto &amp; Sources — Por agente</h3>
+<p>Cada prompt tem um painel colapsável <strong>⚙ Contexto &amp; Sources</strong>. Expanda-o para controlar exatamente quais informações do case serão enviadas para aquele agente.</p>
+
+<div class="ctx-mockup">
+  <div style="background:var(--surface);padding:6px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);border-bottom:1px solid var(--border)">
+    ▶ ⚙ Contexto &amp; Sources &nbsp;&nbsp; <span style="background:var(--accent);color:#fff;border-radius:99px;font-size:9px;font-weight:700;padding:1px 6px">ctx+rag</span>
+  </div>
+  <div style="padding:12px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);margin-bottom:8px">Informações do case incluídas</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <label class="ctx-row" style="padding:0;border:none"><input class="ctx-chk" type="checkbox" checked> <span style="font-size:11px;color:var(--text2)">Metadados (ID, Customer, Env…)</span></label>
+      <label class="ctx-row" style="padding:0;border:none"><input class="ctx-chk" type="checkbox" checked> <span style="font-size:11px;color:var(--text2)">Symptom &amp; Repro</span></label>
+      <label class="ctx-row" style="padding:0;border:none"><input class="ctx-chk" type="checkbox" checked> <span style="font-size:11px;color:var(--text2)">Texto dos steps</span></label>
+      <label class="ctx-row" style="padding:0;border:none"><input class="ctx-chk" type="checkbox" > <span style="font-size:11px;color:var(--text2)">SQL / Logs / Tabelas</span></label>
+    </div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);margin-bottom:6px">Finding types incluídos</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      <span class="ctx-pill on">ℹ Info</span>
+      <span class="ctx-pill on">🔎 Clue</span>
+      <span class="ctx-pill on">⚡ Highlight</span>
+      <span class="ctx-pill">🎯 Root Cause</span>
+    </div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);margin-bottom:6px">Knowledge Base (RAG)</div>
+    <label class="ctx-row" style="padding:0;border:none"><input class="ctx-chk" type="checkbox" checked> <span style="font-size:11px;color:var(--text2)">Incluir documentos do knowledge base</span></label>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;padding-left:20px">☑ sap_note_12345.md &nbsp; ☐ old_runbook.txt</div>
+  </div>
+</div>
+
+<h3>Controles disponíveis</h3>
+<div class="card">
+  <ul style="margin:0">
+    <li><strong>Metadados do case</strong> — Case ID, Customer, Environment, DB, Architecture, Version</li>
+    <li><strong>Symptom &amp; Repro</strong> — campos Symptom e Steps to Reproduce</li>
+    <li><strong>Texto dos steps</strong> — conteúdo dos blocos Text e Highlight</li>
+    <li><strong>SQL / Logs / Tabelas</strong> — blocos SQL Query, SQL Result, Log e Table</li>
+    <li><strong>Finding types</strong> — filtra quais steps são enviados pelo tipo de finding (Info, Clue, Highlight, Root Cause). Deselecionar um tipo exclui todos os steps desse tipo do contexto.</li>
+    <li><strong>Knowledge Base (RAG)</strong> — ativa o envio de documentos indexados. Quando ativado, pode-se selecionar quais documentos específicos incluir, ou deixar todos marcados para incluir tudo.</li>
+  </ul>
+</div>
+
+<h3>Agentes disponíveis para configuração</h3>
+<div class="card-grid-3">
+  <div class="card-sm"><h4>🤖 AI Assist</h4><p>Full, Internal, External e Cause &amp; Solution</p></div>
+  <div class="card-sm"><h4>📚 KBA</h4><p>Auto-preenchimento de KBA</p></div>
+  <div class="card-sm"><h4>💬 Mensagens</h4><p>TE, Developer e Swarm</p></div>
+  <div class="card-sm"><h4>🚨 Incident</h4><p>Geração dos campos de incident</p></div>
+  <div class="card-sm"><h4>📖 Guide</h4><p>Geração do guia de investigação</p></div>
+  <div class="card-sm"><h4>🗂 RAG</h4><p>Prompt de sugestão de steps (server-side)</p></div>
+</div>
+
+<div class="tip">
+  <strong>💡 Dica:</strong> A configuração de Contexto &amp; Sources é salva junto com o prompt no localStorage. O badge <code>ctx</code> ou <code>rag</code> aparece no header do painel quando há uma configuração diferente do padrão. Use <span class="mockup-btn ghost">↺ Reset</span> para limpar qualquer customização de um agente específico.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     RAG & KNOWLEDGE BASE
+═════════════════════════════════════════════════════ -->
+<h2 id="rag">📚 RAG &amp; Knowledge Base</h2>
+
+<p>O sistema usa <strong>Retrieval-Augmented Generation (RAG)</strong>: antes de cada chamada à IA de sugestão de steps, o servidor busca os 3 documentos mais relevantes na pasta <code>knowledge/</code> e os inclui no contexto. Além disso, os agentes client-side também podem consumir documentos da knowledge base via <a href="#ai-prompts" style="color:var(--accent)">⚙ Prompts</a>.</p>
+
+<h3>Como adicionar documentos</h3>
+<ol class="steps">
+  <li>
+    <div>
+      <strong>Crie arquivos <code>.txt</code>, <code>.md</code>, <code>.xml</code> ou <code>.zip</code></strong>
+      <p>Coloque na pasta <code>knowledge/</code> do projeto. Pode ser qualquer texto: notas técnicas, KBAs, runbooks, documentação interna, exports de cases anteriores.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Clique em "🔄 Re-index files" no tab Package</strong>
+      <p>O servidor gera embeddings para os novos arquivos e atualiza o <code>knowledge_index.json</code>. Arquivos já indexados são ignorados.</p>
+    </div>
+  </li>
+  <li>
+    <div>
+      <strong>Verifique o status</strong>
+      <p>O tab <strong>📦 Package</strong> mostra quantos documentos estão indexados e lista os nomes das fontes.</p>
+    </div>
+  </li>
+</ol>
+
+<h3>Contribuição automática — Caso Resolvido</h3>
+<p>Ao clicar em <span class="mockup-btn success">✅ Case Resolved</span>, a skill exportada é automaticamente salva na pasta <code>skills/</code> e indexada na knowledge base. Assim, cases resolvidos alimentam futuras sugestões de IA.</p>
+
+<p>Você também pode clicar em <span class="mockup-btn ai">📤 Contribute this case to RAG</span> no tab Package a qualquer momento para contribuir o case em andamento sem marcá-lo como resolvido.</p>
+
+<h3>RAG no client-side (por agente)</h3>
+<p>Os agentes de IA chamados diretamente pelo browser (AI Assist, KBA, Messages, Incident, Guide) também podem consumir documentos da knowledge base. Configure isso por agente em <a href="#ai-prompts" style="color:var(--accent)">⚙ Prompts → Knowledge Base (RAG)</a>.</p>
+
+<div class="tip">
+  <strong>💡 Aprendizado contínuo:</strong> Quanto mais cases resolvidos você exportar como skill, melhor e mais específica será a IA nas sugestões de próximos passos.
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     EXPORTAÇÃO — XML / ZIP
+═════════════════════════════════════════════════════ -->
+<h2 id="export-xml">📦 Exportar como ZIP</h2>
+
+<p>Toda a investigação pode ser exportada para um arquivo portátil e reimportada depois. O tab <strong>📦 Package</strong> é o ponto central de exportação e gestão do knowledge base.</p>
+
+<h3>Conteúdo do ZIP</h3>
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>📄 case.xml</h4>
+    <p>Toda a estrutura do case: metadados, groups, steps, blocos de conteúdo, links, KBA, incident e AI metadata.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🗂 attachments/</h4>
+    <p>Todas as imagens dos blocos Image como arquivos separados. Imagens são referenciadas no XML pelo nome do arquivo.</p>
+  </div>
+</div>
+
+<h3>AI Contribution Stats</h3>
+<p>O tab Package exibe estatísticas de contribuição da IA para o case atual:</p>
+
+<div class="card">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;">
+    <div style="background:var(--surface2);border-radius:6px;padding:8px 4px">
+      <div style="font-size:18px;font-weight:700;color:var(--text)">5</div>
+      <div style="font-size:10px;color:var(--text3)">Suggested</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:6px;padding:8px 4px">
+      <div style="font-size:18px;font-weight:700;color:var(--accent)">2</div>
+      <div style="font-size:10px;color:var(--text3)">Accepted</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:6px;padding:8px 4px">
+      <div style="font-size:18px;font-weight:700;color:var(--success)">1</div>
+      <div style="font-size:10px;color:var(--text3)">Edited</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:6px;padding:8px 4px">
+      <div style="font-size:18px;font-weight:700;color:var(--danger)">2</div>
+      <div style="font-size:10px;color:var(--text3)">Rejected</div>
+    </div>
+  </div>
+  <p style="margin-top:10px;margin-bottom:0;font-size:12px">Effectiveness: <strong style="color:var(--success)">60%</strong> <span style="color:var(--text3)">(accepted + edited / total suggested)</span></p>
+</div>
+
+<h3>Estrutura do XML</h3>
+<div style="background:var(--bg);border-radius:8px;padding:16px;font-family:var(--mono);font-size:12px;color:var(--text2);overflow-x:auto;margin:12px 0">
+&lt;<span style="color:#7dd3fc">investigation</span>&gt;<br>
+&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">meta</span>&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">caseId</span>&gt;INC-2024-001&lt;/<span style="color:#7dd3fc">caseId</span>&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">symptom</span>&gt;...&lt;/<span style="color:#7dd3fc">symptom</span>&gt;<br>
+&nbsp;&nbsp;&lt;/<span style="color:#7dd3fc">meta</span>&gt;<br>
+&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">groups</span>&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">group</span> id="g1" title="Database"/&gt;<br>
+&nbsp;&nbsp;&lt;/<span style="color:#7dd3fc">groups</span>&gt;<br>
+&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">steps</span>&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">step</span> shortId="S1" groupId="g1" findingType="clue" aiGenerated="true" aiStatus="edited"&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">title</span>&gt;Check HANA logs&lt;/<span style="color:#7dd3fc">title</span>&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;<span style="color:#7dd3fc">blocks</span>&gt;...&lt;/<span style="color:#7dd3fc">blocks</span>&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;/<span style="color:#7dd3fc">step</span>&gt;<br>
+&nbsp;&nbsp;&lt;/<span style="color:#7dd3fc">steps</span>&gt;<br>
+&lt;/<span style="color:#7dd3fc">investigation</span>&gt;
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     CASO RESOLVIDO
+═════════════════════════════════════════════════════ -->
+<h2 id="export-skill">✅ Caso Resolvido — Export de Skill</h2>
+
+<p>Quando o case for resolvido, use o botão <span class="mockup-btn success">✅ Case Resolved</span> no topo da topbar para exportar as descobertas como uma <strong>Skill</strong> reutilizável.</p>
+
+<div class="warn">
+  <strong>⚠️ Pré-requisito:</strong> O case precisa ter um <strong>Case ID</strong> preenchido e pelo menos um step do tipo <strong>Clue, Highlight ou Root Cause</strong>.
+</div>
+
+<h3>O que é exportado</h3>
+<p>Um arquivo <code>skills/case_&lt;ID&gt;_skill.md</code> é gerado com:</p>
+<ul>
+  <li>Metadados do case (cliente, ambiente, banco, versão)</li>
+  <li>Apenas os steps com <strong>Highlight, Clue ou Root Cause</strong> — descartando steps Info sem relevância</li>
+  <li>Grupos preservados como seções do Markdown</li>
+  <li>Conteúdo de texto, SQL, logs e links de vídeo</li>
+  <li>Indicação de steps gerados por IA</li>
+</ul>
+
+<h3>Contribuição para RAG</h3>
+<p>O arquivo é automaticamente indexado na knowledge base. A partir deste momento, futuras investigações similares receberão sugestões baseadas neste caso resolvido.</p>
+
+<!-- ══════════════════════════════════════════════════
+     IMPORTAR
+═════════════════════════════════════════════════════ -->
+<h2 id="import">📥 Importar Cases</h2>
+
+<p>Você pode importar cases exportados anteriormente de três formas:</p>
+
+<div class="card-grid">
+  <div class="card-sm">
+    <h4>🗂 Na lista de cases</h4>
+    <p>Na tela inicial, clique em <span class="mockup-btn ghost">⬆ Import</span> ou arraste o arquivo para a área de drop na parte inferior da página.</p>
+  </div>
+  <div class="card-sm">
+    <h4>🔬 No editor</h4>
+    <p>Clique em <span class="mockup-btn ghost">⬆ Import</span> na topbar ou use o botão <span class="mockup-btn ghost">🗂 Cases</span> para abrir o modal de importação diretamente no editor.</p>
+  </div>
+</div>
+
+<p>Formatos aceitos: <code>.zip</code>, <code>.xml</code> e <code>.json</code> (estado bruto).</p>
+
+<div class="warn">
+  <strong>⚠️ Atenção:</strong> Se o Case ID do arquivo importado já existir no navegador, o case existente é <strong>sobrescrito</strong> com os dados do arquivo importado.
+</div>
+
+<hr>
+
+<p style="text-align:center;font-size:12px;color:var(--text3);padding:24px 0">
+  SAP Support Investigation Tool · Guia v2.0
+</p>
+
+</main>
+</div>
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('h2[id]');
+  const navLinks = document.querySelectorAll('nav a');
+
+  function updateActive() {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>
+</body>
+</html>

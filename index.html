@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAP Investigation — Cases</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3347;
+    --accent: #4f7cff; --success: #3ecf8e; --warning: #f59e0b; --danger: #ef4444;
+    --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+    --radius: 8px; --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 16px; height: 56px; }
+  .topbar h1 { font-size: 15px; font-weight: 600; }
+  .topbar .badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; letter-spacing: 1px; text-transform: uppercase; }
+  .topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  .page { max-width: 960px; margin: 0 auto; padding: 36px 24px; }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text3); }
+
+  /* Search bar */
+  .search-wrap { position: relative; width: 260px; }
+  .search-wrap input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-size: 12px; padding: 6px 10px 6px 30px; outline: none; font-family: var(--font);
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 12px; pointer-events: none; }
+
+  /* Table */
+  .cases-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--surface2); padding: 10px 16px; text-align: left;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px;
+    color: var(--text3); border-bottom: 1px solid var(--border); white-space: nowrap;
+    cursor: pointer; user-select: none;
+  }
+  thead th:hover { color: var(--text2); }
+  thead th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+  thead th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+  tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 12px 16px; vertical-align: middle; }
+  .td-id { font-weight: 600; color: var(--text); font-size: 13px; }
+  .td-customer { color: var(--text2); }
+  .td-date { color: var(--text3); font-size: 12px; white-space: nowrap; }
+  .td-actions { width: 48px; text-align: right; }
+  .btn-del {
+    background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px;
+    padding: 4px 6px; border-radius: 4px; line-height: 1; opacity: 0; transition: opacity 0.12s;
+  }
+  tbody tr:hover .btn-del { opacity: 1; }
+  .btn-del:hover { color: var(--danger); background: #ef444422; }
+
+  /* Empty state */
+  .empty-row td { padding: 56px 20px; text-align: center; color: var(--text3); }
+  .empty-row .icon { font-size: 36px; opacity: 0.4; display: block; margin-bottom: 10px; }
+  .empty-row p { font-size: 13px; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 24px;
+    text-align: center; color: var(--text3); font-size: 12px; cursor: pointer;
+    transition: all 0.15s; outline: none; margin-top: 20px;
+  }
+  .drop-zone:hover, .drop-zone:focus { border-color: var(--accent); color: var(--accent); }
+  .drop-zone.drag-over { border-color: var(--accent); background: #4f7cff11; }
+  .drop-zone p { margin-top: 5px; font-size: 11px; color: var(--text3); }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: var(--font); text-decoration: none; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #3d6bf7; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+  /* Notification */
+  .notif { position: fixed; bottom: 20px; right: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; font-size: 13px; color: var(--text); z-index: 200; transform: translateY(60px); opacity: 0; transition: all 0.25s; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+  .notif.show { transform: translateY(0); opacity: 1; }
+  .notif.success { border-color: var(--success); }
+  .notif.danger { border-color: var(--danger); }
+
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span style="font-size:20px">🔍</span>
+  <h1>SAP Support Investigation</h1>
+  <span class="badge">SAP</span>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-sm" onclick="triggerImport()">⬆ Import</button>
+    <button class="btn btn-primary btn-sm" onclick="newCase()">＋ New Case</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="section-header">
+    <span class="section-title">Saved Cases <span id="caseCount" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:12px;margin-left:6px"></span></span>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input id="searchInput" placeholder="Buscar por case ou cliente…" oninput="renderTable()">
+    </div>
+  </div>
+
+  <div class="cases-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('id')" id="th-id">Case ID <span class="sort-arrow" id="arrow-id">↕</span></th>
+          <th onclick="sortBy('customer')" id="th-customer">Cliente <span class="sort-arrow" id="arrow-customer">↕</span></th>
+          <th onclick="sortBy('createdAt')" id="th-createdAt">Criado em <span class="sort-arrow" id="arrow-createdAt">↕</span></th>
+          <th onclick="sortBy('savedAt')" id="th-savedAt" class="sorted">Última atualização <span class="sort-arrow" id="arrow-savedAt">↓</span></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="drop-zone" id="dropZone" tabindex="0"
+    onclick="triggerImport()"
+    ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+    <div style="font-size:22px">📂</div>
+    <strong style="font-size:13px">Abrir case existente</strong>
+    <p>Arraste um arquivo <code>.zip</code> ou <code>.xml</code> aqui, ou clique para escolher</p>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+// ── Sort state ─────────────────────────────────────────────────
+let sortCol = 'savedAt', sortDir = -1; // -1 = desc
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = col === 'savedAt' || col === 'createdAt' ? -1 : 1; }
+  renderTable();
+}
+
+// ── Storage helpers ────────────────────────────────────────────
+function getCaseList() {
+  try { return JSON.parse(localStorage.getItem('sap_cases') || '[]'); }
+  catch(e) { return []; }
+}
+
+function migrateLegacy() {
+  const legacy = localStorage.getItem('sap_investigation');
+  if (!legacy) return;
+  try {
+    const parsed = JSON.parse(legacy);
+    const key = parsed.caseId ? 'sap_case_' + parsed.caseId : 'sap_case__unsaved';
+    if (!localStorage.getItem(key)) localStorage.setItem(key, legacy);
+    if (parsed.caseId) {
+      const list = getCaseList();
+      if (!list.find(c => c.id === parsed.caseId)) {
+        const now = new Date().toISOString();
+        list.push({ id: parsed.caseId, customer: parsed.customerName || '', createdAt: now, savedAt: now });
+        localStorage.setItem('sap_cases', JSON.stringify(list));
+      }
+    }
+    localStorage.removeItem('sap_investigation');
+  } catch(e) {}
+}
+
+function deleteCase(id, ev) {
+  ev.stopPropagation();
+  if (!confirm(`Excluir o case "${id}"? Esta ação não pode ser desfeita.`)) return;
+  try {
+    localStorage.removeItem('sap_case_' + id);
+    const list = getCaseList().filter(c => c.id !== id);
+    localStorage.setItem('sap_cases', JSON.stringify(list));
+    renderTable();
+    showNotif('Case excluído', 'success');
+  } catch(e) { showNotif('Erro ao excluir', 'danger'); }
+}
+
+function openCase(id) {
+  window.location.href = '/CASE_HANDLING.html?case=' + encodeURIComponent(id);
+}
+
+function newCase() {
+  window.location.href = '/CASE_HANDLING.html';
+}
+
+// ── Render table ───────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderTable() {
+  const query = (document.getElementById('searchInput').value || '').toLowerCase();
+  let list = getCaseList();
+
+  // Filter
+  if (query) list = list.filter(c =>
+    (c.id || '').toLowerCase().includes(query) ||
+    (c.customer || '').toLowerCase().includes(query)
+  );
+
+  // Sort
+  list.sort((a, b) => {
+    const va = (sortCol === 'id' || sortCol === 'customer') ? (a[sortCol === 'id' ? 'id' : 'customer'] || '').toLowerCase() : (a[sortCol] || '');
+    const vb = (sortCol === 'id' || sortCol === 'customer') ? (b[sortCol === 'id' ? 'id' : 'customer'] || '').toLowerCase() : (b[sortCol] || '');
+    return va < vb ? -sortDir : va > vb ? sortDir : 0;
+  });
+
+  // Update sort arrows
+  ['id','customer','createdAt','savedAt'].forEach(col => {
+    const th = document.getElementById('th-' + col);
+    const arrow = document.getElementById('arrow-' + col);
+    if (col === sortCol) {
+      th.classList.add('sorted');
+      arrow.textContent = sortDir === 1 ? '↑' : '↓';
+    } else {
+      th.classList.remove('sorted');
+      arrow.textContent = '↕';
+    }
+  });
+
+  // Count
+  const total = getCaseList().length;
+  document.getElementById('caseCount').textContent = total ? '— ' + total + ' case' + (total !== 1 ? 's' : '') : '';
+
+  const tbody = document.getElementById('tableBody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">
+      <span class="icon">🗂</span>
+      <p>${query ? 'Nenhum case encontrado para "' + esc(query) + '".' : 'Nenhum case salvo ainda. Crie um novo ou importe um arquivo.'}</p>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(c => `
+    <tr data-id="${esc(c.id)}" class="case-row">
+      <td class="td-id">${esc(c.id)}</td>
+      <td class="td-customer">${esc(c.customer) || '<span style="color:var(--text3)">—</span>'}</td>
+      <td class="td-date">${fmtDate(c.createdAt)}</td>
+      <td class="td-date">${fmtDate(c.savedAt)}</td>
+      <td class="td-actions"><button class="btn-del" data-del-id="${esc(c.id)}" title="Excluir">✕</button></td>
+    </tr>`).join('');
+}
+
+// ── Import ─────────────────────────────────────────────────────
+function triggerImport() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.zip,.xml,.json';
+  input.onchange = e => { const f = e.target.files[0]; if (f) handleFile(f); };
+  input.click();
+}
+
+function onDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function onDragLeave() { document.getElementById('dropZone').classList.remove('drag-over'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0]; if (f) handleFile(f);
+}
+
+async function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  try {
+    let newState;
+    if (ext === 'zip') newState = await importZip(file);
+    else if (ext === 'xml') newState = await importXml(file);
+    else if (ext === 'json') newState = JSON.parse(await file.text());
+    else { showNotif('Formato não suportado. Use .zip, .xml ou .json', 'danger'); return; }
+    if (!newState) return;
+    const now = new Date().toISOString();
+    const key = newState.caseId ? 'sap_case_' + newState.caseId : 'sap_case__unsaved_' + Date.now();
+    localStorage.setItem(key, JSON.stringify(newState));
+    if (newState.caseId) {
+      const list = getCaseList();
+      const existing = list.find(c => c.id === newState.caseId);
+      if (existing) { existing.savedAt = now; existing.customer = newState.customerName || ''; }
+      else { list.push({ id: newState.caseId, customer: newState.customerName || '', createdAt: now, savedAt: now }); }
+      localStorage.setItem('sap_cases', JSON.stringify(list));
+      openCase(newState.caseId);
+    } else {
+      renderTable();
+      showNotif('Importado (sem Case ID)', 'success');
+    }
+  } catch(e) { showNotif('Erro ao importar: ' + e.message, 'danger'); }
+}
+
+async function importZip(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const base64 = ev.target.result.split(',')[1];
+        const res = await fetch('/import-zip', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ zipBase64: base64 })
+        });
+        if (!res.ok) throw new Error('Server error ' + res.status);
+        const { xml, images } = await res.json();
+        resolve(parseXMLToState(xml, images));
+      } catch(e) { reject(e); }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function importXml(file) { return parseXMLToState(await file.text(), {}); }
+
+function parseXMLToState(xmlStr, images) {
+  const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
+  const get = (parent, tag) => { const el = parent.querySelector(tag); return el ? (el.textContent || '') : ''; };
+  const meta = doc.querySelector('meta');
+  const newState = {
+    caseId: get(meta,'caseId'), customerName: get(meta,'customerName'),
+    envType: get(meta,'envType'), dbType: get(meta,'dbType'),
+    archType: get(meta,'archType'), affectsVersion: get(meta,'affectsVersion'),
+    symptom: get(meta,'symptom'), stepsToReproduce: get(meta,'stepsToReproduce'),
+    groups: Array.from(doc.querySelectorAll('groups > group')).map(el => ({
+      id: el.getAttribute('id') || ('g_' + Date.now()),
+      title: el.getAttribute('title') || 'Group'
+    })),
+    steps: [], activeStepId: null, dirty: false
+  };
+  doc.querySelectorAll('step').forEach(stepEl => {
+    const step = { id: stepEl.getAttribute('id') || ('s'+Date.now()), title: get(stepEl,'title'), findingType: stepEl.getAttribute('findingType')||'info', created: stepEl.getAttribute('created')||new Date().toISOString(), groupId: stepEl.getAttribute('groupId')||'', links: [], blocks: [] };
+    stepEl.querySelectorAll('links > link').forEach(l => { if (l.textContent) step.links.push(l.textContent); });
+    stepEl.querySelectorAll('block').forEach(bEl => {
+      const block = { id: bEl.getAttribute('id')||('b'+Date.now()), type: bEl.getAttribute('type')||'text' };
+      if (block.type === 'image') { block.fileName = get(bEl,'fileName'); block.content = images[block.fileName]||''; }
+      else if (block.type === 'table') { block.rawTable = get(bEl,'rawTable'); }
+      else { block.content = get(bEl,'content'); }
+      step.blocks.push(block);
+    });
+    newState.steps.push(step);
+  });
+  const kba = doc.querySelector('kba');
+  if (kba) newState.kba = { symptom: get(kba,'symptom'), repro: get(kba,'repro'), cause: get(kba,'cause'), solution: get(kba,'solution') };
+  const inc = doc.querySelector('incident');
+  if (inc) newState.incident = { desc: get(inc,'desc'), label: get(inc,'label'), customer: get(inc,'customer'), tenantId: get(inc,'tenantId'), env: get(inc,'env'), version: get(inc,'version'), db: get(inc,'db'), arch: get(inc,'arch'), repro: get(inc,'repro'), findings: get(inc,'findings'), needed: get(inc,'needed'), logs: get(inc,'logs'), reploTest: get(inc,'reploTest') };
+  return newState;
+}
+
+// ── Utils ──────────────────────────────────────────────────────
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+let _nt;
+function showNotif(msg, type='') {
+  const el = document.getElementById('notif');
+  el.textContent = msg; el.className = 'notif show ' + type;
+  clearTimeout(_nt); _nt = setTimeout(() => { el.className = 'notif'; }, 2800);
+}
+
+// ── Init ───────────────────────────────────────────────────────
+migrateLegacy();
+renderTable();
+
+document.getElementById('tableBody').addEventListener('click', function(e) {
+  const delBtn = e.target.closest('[data-del-id]');
+  if (delBtn) { deleteCase(delBtn.dataset.delId, e); return; }
+  const row = e.target.closest('.case-row');
+  if (row) openCase(row.dataset.id);
+});
+</script>
+</body>
+</html>
