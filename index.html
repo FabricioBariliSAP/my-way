@@ -281,7 +281,13 @@ async function handleFile(file) {
     if (!newState) return;
     const now = new Date().toISOString();
     const key = newState.caseId ? 'sap_case_' + newState.caseId : 'sap_case__unsaved_' + Date.now();
-    localStorage.setItem(key, JSON.stringify(newState));
+    try {
+      localStorage.setItem(key, JSON.stringify(newState));
+    } catch(qe) {
+      if (!newState.caseId || !(qe.name === 'QuotaExceededError' || qe.code === 22 || qe.code === 1014)) throw qe;
+      const r = await fetch('/api/save-state', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ state: newState }) });
+      if (!r.ok) throw new Error('Falha ao salvar no servidor');
+    }
     if (newState.caseId) {
       const list = getCaseList();
       const existing = list.find(c => c.id === newState.caseId);

@@ -1,20 +1,5 @@
-# Dependencies
 node_modules/
-
-# Environment variables (contain secrets)
-.env
-
-# Sensitive files with hardcoded keys
-CASE_HANDLING.html
-VIEW.html
-
-# Large data files (regenerable)
+contexto/
+data/
 knowledge_index.json
-*.txt
-
-# Claude Code local settings
-.claude/settings.local.json
-
-# OS
-.DS_Store
-Thumbs.db
+.env

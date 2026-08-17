@@ -3,10 +3,23 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const crypto = require('crypto');
 const AdmZip = require('adm-zip');
+const { scrub } = require('./anonymize');
 
 // Load env vars from .env if present (dev convenience)
-try { require('fs').readFileSync('.env', 'utf8').split('\n').forEach(l => { const [k,v] = l.split('='); if (k && v) process.env[k.trim()] = v.trim(); }); } catch (_) {}
+// Uses indexOf('=') so values that contain '=' (base64 keys, URLs with query strings) are preserved.
+try {
+  require('fs').readFileSync('.env', 'utf8').split(/\r?\n/).forEach(l => {
+    const trimmed = l.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const eq = trimmed.indexOf('=');
+    if (eq < 1) return;
+    const k = trimmed.slice(0, eq).trim();
+    const v = trimmed.slice(eq + 1).trim();
+    if (k && !(k in process.env)) process.env[k] = v; // don't override real env vars
+  });
+} catch (_) {}
 
 const PORT = process.env.PORT || 3000;
 const AI_HOST = process.env.AI_HOST || 'http://localhost:6655';
@@ -15,9 +28,42 @@ const EMBED_MODEL = 'text-embedding-3-small';
 const CHAT_MODEL = 'gpt-4.1';
 const KNOWLEDGE_DIR = path.join(__dirname, 'knowledge');
 const INDEX_FILE = path.join(__dirname, 'knowledge_index.json');
+const DATA_DIR = path.join(__dirname, 'data');
+const ENC_KEY_PASSPHRASE = process.env.ENCRYPTION_KEY || 'my-way-default-key-CHANGE-ME';
+
+if (!process.env.ENCRYPTION_KEY) {
+  console.warn('  [WARN] ENCRYPTION_KEY not set — using default passphrase. Set it in .env for real security.\n');
+}
 
 // ============================================================
-// RAG HELPERS
+// ENCRYPTION HELPERS (AES-256-GCM + scrypt key derivation)
+// ============================================================
+function encryptState(data) {
+  const salt = crypto.randomBytes(16);
+  const key = crypto.scryptSync(ENC_KEY_PASSPHRASE, salt, 32);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const plaintext = Buffer.from(JSON.stringify(data), 'utf8');
+  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return JSON.stringify({
+    salt: salt.toString('hex'),
+    iv: iv.toString('hex'),
+    authTag: cipher.getAuthTag().toString('hex'),
+    data: encrypted.toString('hex'),
+  });
+}
+
+function decryptState(raw) {
+  const { salt, iv, authTag, data } = JSON.parse(raw);
+  const key = crypto.scryptSync(ENC_KEY_PASSPHRASE, Buffer.from(salt, 'hex'), 32);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'hex'));
+  decipher.setAuthTag(Buffer.from(authTag, 'hex'));
+  const decrypted = Buffer.concat([decipher.update(Buffer.from(data, 'hex')), decipher.final()]);
+  return JSON.parse(decrypted.toString('utf8'));
+}
+
+// ============================================================
+// HYPERSPACE / RAG HELPERS
 // ============================================================
 function haiRequest(method, pathname, body) {
   return new Promise((resolve, reject) => {
@@ -245,7 +291,7 @@ function readBody(req) {
 // ============================================================
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
@@ -345,8 +391,8 @@ Return ONLY a valid JSON array (no markdown, no extra text):
 ]`;
 
       const userPrompt = ragContext
-        ? `## Current Investigation\n${invContext}\n\n## Similar Past Cases / Reference Documents\n${ragContext}`
-        : `## Current Investigation\n${invContext}`;
+        ? `## Current Investigation\n${scrub(invContext)}\n\n## Similar Past Cases / Reference Documents\n${ragContext}`
+        : `## Current Investigation\n${scrub(invContext)}`;
 
       const r = await haiRequest('POST', '/openai/v1/chat/completions', {
         model: CHAT_MODEL,
@@ -381,7 +427,6 @@ Return ONLY a valid JSON array (no markdown, no extra text):
       const { state } = JSON.parse(body);
       if (!state.caseId) throw new Error('Case ID is required to contribute');
 
-      // Build full text representation of the case
       let text = `Case: ${state.caseId} | Customer: ${state.customerName || ''} | ${state.envType || ''} ${state.dbType || ''} ${state.affectsVersion || ''}\n`;
       (state.steps || []).forEach((s, i) => {
         text += `Step ${i + 1} [${s.findingType || 'info'}]: ${s.title}\n`;
@@ -393,7 +438,6 @@ Return ONLY a valid JSON array (no markdown, no extra text):
       if (state.kba) {
         text += `\nCause: ${(state.kba.cause || '').slice(0, 300)}\nSolution: ${(state.kba.solution || '').slice(0, 300)}\n`;
       }
-      text = text.slice(0, 4000);
 
       fs.mkdirSync(KNOWLEDGE_DIR, { recursive: true });
       const embedding = await getEmbedding(text);
@@ -674,6 +718,70 @@ Return ONLY a valid JSON array (no markdown, no extra text):
       .filter(e => !allowedSources || allowedSources.includes(e.source))
       .map(e => ({ source: e.source, text: e.text }));
     sendJSON(200, { docs });
+    return;
+  }
+
+  // ---- POST /api/save-state ----
+  if (req.method === 'POST' && req.url === '/api/save-state') {
+    try {
+      const body = await readBody(req);
+      const { state } = JSON.parse(body);
+      if (!state.caseId) throw new Error('caseId is required');
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      const safeId = String(state.caseId).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filePath = path.join(DATA_DIR, `case_${safeId}.enc`);
+      fs.writeFileSync(filePath, encryptState(state), 'utf8');
+      sendJSON(200, { ok: true, file: `data/case_${safeId}.enc` });
+    } catch (e) {
+      sendJSON(500, { error: e.message });
+    }
+    return;
+  }
+
+  // ---- GET /api/list-states ----
+  if (req.method === 'GET' && req.url === '/api/list-states') {
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      const files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.enc'));
+      const states = files.map(f => ({
+        file: f,
+        caseId: f.replace(/^case_/, '').replace(/\.enc$/, ''),
+        savedAt: fs.statSync(path.join(DATA_DIR, f)).mtime.toISOString(),
+      }));
+      sendJSON(200, { states });
+    } catch (e) {
+      sendJSON(500, { error: e.message });
+    }
+    return;
+  }
+
+  // ---- GET /api/load-state/:caseId ----
+  if (req.method === 'GET' && req.url.startsWith('/api/load-state/')) {
+    try {
+      const caseId = decodeURIComponent(req.url.slice('/api/load-state/'.length));
+      const safeId = caseId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filePath = path.join(DATA_DIR, `case_${safeId}.enc`);
+      if (!fs.existsSync(filePath)) { sendJSON(404, { error: 'State not found' }); return; }
+      const state = decryptState(fs.readFileSync(filePath, 'utf8'));
+      sendJSON(200, { state });
+    } catch (e) {
+      sendJSON(500, { error: e.message });
+    }
+    return;
+  }
+
+  // ---- DELETE /api/delete-state/:caseId ----
+  if (req.method === 'DELETE' && req.url.startsWith('/api/delete-state/')) {
+    try {
+      const caseId = decodeURIComponent(req.url.slice('/api/delete-state/'.length));
+      const safeId = caseId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filePath = path.join(DATA_DIR, `case_${safeId}.enc`);
+      if (!fs.existsSync(filePath)) { sendJSON(404, { error: 'State not found' }); return; }
+      fs.unlinkSync(filePath);
+      sendJSON(200, { ok: true });
+    } catch (e) {
+      sendJSON(500, { error: e.message });
+    }
     return;
   }
 
