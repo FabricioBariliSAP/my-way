@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investigation View</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3347;
+    --accent: #4f7cff; --success: #3ecf8e; --warning: #f59e0b; --danger: #ef4444;
+    --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+    --radius: 8px; --font: 'Segoe UI', system-ui, sans-serif; --mono: 'Cascadia Code', 'Consolas', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* ── Layout ── */
+  .app { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: 56px 1fr; height: 100vh; overflow: hidden; }
+  .topbar { grid-column: 1/-1; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; z-index: 10; }
+  .topbar h1 { font-size: 14px; font-weight: 600; }
+  .topbar-meta { font-size: 12px; color: var(--text2); display: flex; gap: 10px; align-items: center; }
+  .topbar-meta span { color: var(--text3); }
+  .topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* ── Sidebar nav ── */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+  .sidebar-header { padding: 10px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .sidebar-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text3); }
+  .progress-bar { height: 3px; background: var(--border); border-radius: 99px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.3s; }
+  .progress-label { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+  .nav-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .nav-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; border: 1px solid transparent; margin-bottom: 3px; transition: all 0.12s; }
+  .nav-item:hover { background: var(--surface2); }
+  .nav-item.active { background: var(--surface2); border-color: var(--accent); }
+  .nav-item.seen .nav-num { background: var(--success); border-color: var(--success); color: #0f1117; }
+  .nav-num { width: 22px; height: 22px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text2); flex-shrink: 0; margin-top: 1px; }
+  .nav-item.active .nav-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .nav-title { font-size: 12px; color: var(--text2); line-height: 1.4; flex: 1; min-width: 0; }
+  .nav-item.active .nav-title { color: var(--text); font-weight: 500; }
+  .nav-badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 99px; margin-top: 2px; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+  .nb-root { background: #ef444422; color: #ef4444; border: 1px solid #ef444444; }
+  .nb-highlight { background: #f59e0b22; color: var(--warning); border: 1px solid #f59e0b44; }
+  .nb-clue { background: #4f7cff22; color: #7ca8ff; border: 1px solid #4f7cff44; }
+  .nb-info { background: var(--surface); color: var(--text3); border: 1px solid var(--border); }
+  .nb-next { background: #06b6d422; color: #06b6d4; border: 1px solid #06b6d444; }
+
+  .group-nav-header { padding: 6px 10px 3px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; color: var(--text3); border-top: 1px solid var(--border); margin-top: 4px; }
+
+  /* ── Main content ── */
+  .main { overflow: hidden; display: flex; flex-direction: column; }
+  .step-view { flex: 1; overflow-y: auto; padding: 28px 36px; display: flex; flex-direction: column; gap: 0; }
+
+  /* Step card */
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+  .step-card-header { padding: 18px 24px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+  .step-card-num { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .step-card-num.type-root { background: var(--danger); }
+  .step-card-num.type-highlight { background: var(--warning); color: #0f1117; }
+  .step-card-num.type-clue { background: var(--accent); }
+  .step-card-title { font-size: 18px; font-weight: 700; color: var(--text); flex: 1; }
+  .step-card-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.6px; flex-shrink: 0; }
+  .step-card-shortid { font-size: 11px; color: var(--text3); font-weight: 600; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
+  .step-card-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* Blocks */
+  .vblock { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .vblock-label { background: var(--surface2); padding: 6px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text2); border-bottom: 1px solid var(--border); }
+  .vblock-body { padding: 12px 14px; }
+  .vblock-text { font-size: 13px; line-height: 1.7; color: var(--text); }
+  .vblock-text b, .vblock-text strong { font-weight: 700; }
+  .vblock-text i, .vblock-text em { font-style: italic; }
+  .vblock-text u { text-decoration: underline; }
+  .vblock-text code { font-family: var(--mono); font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; color: #7dd3fc; }
+  .vblock-text ul, .vblock-text ol { padding-left: 20px; margin: 4px 0; }
+  .vblock-text li { margin: 3px 0; }
+  .vblock-text blockquote { border-left: 3px solid var(--accent); margin: 4px 0; padding: 4px 12px; color: var(--text2); background: #4f7cff0d; border-radius: 0 4px 4px 0; }
+  .vblock-text a { color: var(--accent); }
+  .vblock-highlight { background: #f59e0b0a; border-color: #f59e0b44; }
+  .vblock-highlight .vblock-body { color: #fcd34d; font-size: 14px; line-height: 1.7; }
+  .vblock-code pre { font-family: var(--mono); font-size: 12px; line-height: 1.55; color: #7dd3fc; white-space: pre-wrap; overflow-x: auto; }
+  .vblock-log pre { font-family: var(--mono); font-size: 11px; line-height: 1.55; color: #86efac; white-space: pre-wrap; overflow-x: auto; max-height: 320px; overflow-y: auto; }
+  .vblock-table-wrap { overflow-x: auto; }
+  .vblock-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .vblock-table-wrap th { background: var(--surface2); padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .vblock-table-wrap td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+  .vblock-table-wrap tr:last-child td { border-bottom: none; }
+  .vblock-table-wrap tr:hover td { background: var(--surface2); }
+  .vblock-image img { max-width: 100%; border-radius: 6px; display: block; cursor: zoom-in; transition: opacity 0.15s; }
+  .vblock-image img:hover { opacity: 0.88; }
+  .vblock-image .img-caption { font-size: 11px; color: var(--text3); margin-top: 7px; font-style: italic; }
+
+  /* Lightbox */
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 9999; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 92vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 8px 48px rgba(0,0,0,0.7); object-fit: contain; cursor: default; }
+  .lightbox-close { position: absolute; top: 16px; right: 20px; color: #fff; font-size: 28px; cursor: pointer; line-height: 1; opacity: 0.7; background: none; border: none; }
+  .lightbox-close:hover { opacity: 1; }
+  .lightbox-caption { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #cbd5e1; font-size: 12px; font-style: italic; text-align: center; max-width: 80vw; pointer-events: none; }
+  .vblock-attachment { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--surface2); border-radius: 6px; }
+  .vblock-attachment .att-icon { font-size: 22px; flex-shrink: 0; }
+  .vblock-attachment .att-info { flex: 1; min-width: 0; }
+  .vblock-attachment .att-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vblock-attachment .att-meta { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  /* Links between steps */
+  .step-links { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--border); background: var(--surface2); }
+  .step-link-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 500; background: var(--surface); border: 1px solid var(--border); cursor: pointer; color: var(--text2); transition: all 0.12s; }
+  .step-link-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Navigation footer */
+  .step-nav-footer { flex-shrink: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 36px; display: flex; align-items: center; gap: 12px; }
+  .step-counter { font-size: 12px; color: var(--text3); flex: 1; text-align: center; }
+
+  /* Btn */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: var(--font); text-decoration: none; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #3d6bf7; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* Case summary header */
+  .case-summary { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 10px 28px; }
+  .cs-field { display: flex; flex-direction: column; gap: 2px; }
+  .cs-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; color: var(--text3); }
+  .cs-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .cs-symptom { flex-basis: 100%; }
+  .cs-symptom .cs-value { font-size: 12px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+
+  /* Empty */
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 20px; color: var(--text3); text-align: center; flex: 1; }
+  .empty .icon { font-size: 48px; opacity: 0.4; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <a href="javascript:history.back()" class="btn btn-ghost btn-sm" style="text-decoration:none">← Voltar</a>
+    <span style="font-size:18px">👁</span>
+    <h1 id="topbarTitle">Investigation View</h1>
+    <div class="topbar-meta" id="topbarMeta"></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="toggleAllSteps()">⊞ Todos</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterHighlights()">⚡ Destaques</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-label">Navegação</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-label" id="progressLabel"></div>
+    </div>
+    <div class="nav-list" id="navList"></div>
+  </div>
+
+  <div class="main">
+    <div class="step-view" id="stepView"></div>
+    <div class="step-nav-footer">
+      <button class="btn btn-ghost btn-sm" id="btnPrev" onclick="navigate(-1)" disabled>← Anterior</button>
+      <span class="step-counter" id="stepCounter"></span>
+      <button class="btn btn-primary btn-sm" id="btnNext" onclick="navigate(1)">Próximo →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+let state = null;
+let steps = [];         // flat ordered list after groups
+let currentIndex = 0;
+let seenSet = new Set();
+let filterMode = false; // true = only highlights/root
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(location.search);
+  const caseId = params.get('case');
+  const key = caseId ? 'sap_case_' + caseId : 'sap_case__unsaved';
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      state = JSON.parse(raw);
+      buildStepOrder();
+      renderAll();
+    } else if (caseId) {
+      // Fallback: try server-side encrypted state
+      fetch('/api/load-state/' + encodeURIComponent(caseId))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && data.state) {
+            state = data.state;
+            buildStepOrder();
+            renderAll();
+          } else {
+            showEmpty('Nenhum case encontrado. Abra a ferramenta principal e salve um case primeiro.');
+          }
+        })
+        .catch(() => showEmpty('Erro ao carregar case do servidor.'));
+    } else {
+      showEmpty('Nenhum case encontrado. Abra a ferramenta principal e salve um case primeiro.');
+    }
+  } catch(e) {
+    showEmpty('Erro ao carregar case: ' + e.message);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') navigate(-1);
+  });
+});
+
+function buildStepOrder() {
+  if (!state) return;
+  const groups = state.groups || [];
+  const ungrouped = state.steps.filter(s => !s.groupId || !groups.find(g => g.id === s.groupId));
+  const grouped = groups.flatMap(g => state.steps.filter(s => s.groupId === g.id));
+  steps = [...ungrouped, ...grouped];
+}
+
+function getVisibleSteps() {
+  if (!filterMode) return steps;
+  return steps.filter(s => s.findingType === 'highlight' || s.findingType === 'root' || s.findingType === 'next');
+}
+
+// ── Render all ────────────────────────────────────────────────
+function renderAll() {
+  renderTopbar();
+  renderNav();
+  renderStep(currentIndex);
+}
+
+function renderTopbar() {
+  if (!state) return;
+  const title = document.getElementById('topbarTitle');
+  title.textContent = state.caseId ? `Case ${state.caseId}` : 'Investigation View';
+
+  const meta = document.getElementById('topbarMeta');
+  const parts = [];
+  if (state.customerName) parts.push(`<strong>${esc(state.customerName)}</strong>`);
+  if (state.envType) parts.push(`<span>${esc(state.envType)}</span>`);
+  if (state.dbType) parts.push(`<span>${esc(state.dbType)}</span>`);
+  if (state.archType) parts.push(`<span>${esc(state.archType)}</span>`);
+  if (state.affectsVersion) parts.push(`<span>v${esc(state.affectsVersion)}</span>`);
+  meta.innerHTML = parts.join('<span style="color:var(--border);margin:0 2px">·</span>');
+}
+
+function renderNav() {
+  if (!state) return;
+  const visible = getVisibleSteps();
+  const groups = state.groups || [];
+  let html = '';
+  let lastGroup = null;
+
+  visible.forEach((step, vi) => {
+    const globalIdx = steps.indexOf(step);
+    const gId = step.groupId;
+    const group = gId ? groups.find(g => g.id === gId) : null;
+    if (group && group.id !== lastGroup) {
+      html += `<div class="group-nav-header">${esc(group.title)}</div>`;
+      lastGroup = group.id;
+    } else if (!group && lastGroup !== null) {
+      lastGroup = null;
+    }
+
+    const num = steps.indexOf(step) + 1;
+    const ft = step.findingType || 'info';
+    const seen = seenSet.has(step.id);
+    html += `<div class="nav-item${currentIndex === globalIdx ? ' active' : ''}${seen ? ' seen' : ''}" onclick="goTo(${globalIdx})">
+      <div class="nav-num">${num}</div>
+      <div style="flex:1;min-width:0">
+        <div class="nav-title">${esc(step.title || 'Untitled')}</div>
+        <span class="nav-badge nb-${ft}">${ft}</span>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('navList').innerHTML = html || '<div style="padding:12px;font-size:12px;color:var(--text3)">Nenhum step para exibir.</div>';
+
+  // Progress
+  const total = getVisibleSteps().length;
+  const seen = getVisibleSteps().filter(s => seenSet.has(s.id)).length;
+  const pct = total ? Math.round(seen / total * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = `${seen} de ${total} visualizados`;
+}
+
+function renderStep(idx) {
+  const visible = getVisibleSteps();
+  const step = steps[idx];
+  const stepView = document.getElementById('stepView');
+
+  if (!step) {
+    stepView.innerHTML = '';
+    updateNavFooter();
+    return;
+  }
+
+  seenSet.add(step.id);
+  currentIndex = idx;
+
+  const num = idx + 1;
+  const ft = step.findingType || 'info';
+  const ftLabel = { root: '🎯 Root Cause', highlight: '⚡ Highlight', clue: '🔎 Clue', info: 'ℹ Info', next: '➡ Next Step' }[ft] || ft;
+  const ftBadgeClass = { root: 'nb-root', highlight: 'nb-highlight', clue: 'nb-clue', info: 'nb-info', next: 'nb-next' }[ft] || 'nb-info';
+  const numClass = { root: 'type-root', highlight: 'type-highlight', clue: 'type-clue', next: 'type-next' }[ft] || '';
+
+  let blocksHtml = '';
+  (step.blocks || []).forEach(b => {
+    blocksHtml += renderViewBlock(b);
+  });
+
+  // Linked steps
+  let linksHtml = '';
+  if (step.links && step.links.length) {
+    const chips = step.links.map(lid => {
+      const ls = steps.find(s => s.id === lid);
+      if (!ls) return '';
+      const li = steps.indexOf(ls) + 1;
+      return `<span class="step-link-chip" onclick="goTo(${steps.indexOf(ls)})">🔗 ${li}. ${esc(ls.title)}</span>`;
+    }).filter(Boolean).join('');
+    if (chips) linksHtml = `<div class="step-links"><span style="font-size:11px;color:var(--text3);margin-right:4px">Steps relacionados:</span>${chips}</div>`;
+  }
+
+  // Case summary on first step
+  let caseSummaryHtml = '';
+  if (idx === 0 && state) {
+    const fields = [];
+    if (state.caseId) fields.push(`<div class="cs-field"><span class="cs-label">Case</span><span class="cs-value">${esc(state.caseId)}</span></div>`);
+    if (state.customerName) fields.push(`<div class="cs-field"><span class="cs-label">Cliente</span><span class="cs-value">${esc(state.customerName)}</span></div>`);
+    if (state.envType) fields.push(`<div class="cs-field"><span class="cs-label">Ambiente</span><span class="cs-value">${esc(state.envType)}</span></div>`);
+    if (state.dbType) fields.push(`<div class="cs-field"><span class="cs-label">DB</span><span class="cs-value">${esc(state.dbType)}</span></div>`);
+    if (state.affectsVersion) fields.push(`<div class="cs-field"><span class="cs-label">Versão</span><span class="cs-value">${esc(state.affectsVersion)}</span></div>`);
+    if (state.symptom) fields.push(`<div class="cs-field cs-symptom"><span class="cs-label">Sintoma</span><span class="cs-value">${esc(state.symptom)}</span></div>`);
+    if (fields.length) caseSummaryHtml = `<div class="case-summary">${fields.join('')}</div>`;
+  }
+
+  stepView.innerHTML = caseSummaryHtml + `<div class="step-card">
+    <div class="step-card-header">
+      <div class="step-card-num ${numClass}">${num}</div>
+      <div class="step-card-title">${esc(step.title || 'Untitled')}</div>
+      <span class="step-card-shortid">@${esc(step.shortId || '')}</span>
+      <span class="step-card-badge ${ftBadgeClass}">${ftLabel}</span>
+    </div>
+    <div class="step-card-body">${blocksHtml || '<div style="color:var(--text3);font-size:13px;padding:4px 0">Nenhum conteúdo registrado.</div>'}</div>
+    ${linksHtml}
+  </div>`;
+
+  stepView.scrollTop = 0;
+  updateNavFooter();
+  renderNav();
+}
+
+function renderViewBlock(b) {
+  const typeLabels = { text: '📝 Nota', sqlquery: '🗄 SQL Query', sqlresult: '📋 SQL Result', log: '📋 Log', table: '📊 Tabela', image: '🖼 Imagem', video: '🎬 Vídeo', highlight: '⚡ Destaque', sql: '🗄 SQL', attachment: '📎 Anexo' };
+
+  if (b.type === 'text') {
+    if (!b.content || !b.content.trim()) return '';
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.text}</div>
+      <div class="vblock-body vblock-text">${b.content}</div>
+    </div>`;
+  }
+
+  if (b.type === 'highlight') {
+    if (!b.content || !b.content.trim()) return '';
+    return `<div class="vblock vblock-highlight">
+      <div class="vblock-label" style="background:#f59e0b0d;border-color:#f59e0b33;color:var(--warning)">⚡ Destaque</div>
+      <div class="vblock-body vblock-text">${b.content}</div>
+    </div>`;
+  }
+
+  if (b.type === 'sqlquery' || b.type === 'sql') {
+    if (!b.content) return '';
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.sqlquery}</div>
+      <div class="vblock-body vblock-code"><pre>${esc(b.content)}</pre></div>
+    </div>`;
+  }
+
+  if (b.type === 'sqlresult') {
+    if (!b.content && !b.csvParsed) return '';
+    let inner = '';
+    if (b.csvParsed && b.csvParsed.cols.length) {
+      inner = renderTable(b.csvParsed.cols, b.csvParsed.rows);
+    } else {
+      inner = `<pre style="font-family:var(--mono);font-size:11px;color:var(--text2);white-space:pre-wrap">${esc(b.content)}</pre>`;
+    }
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.sqlresult}</div>
+      <div class="vblock-body vblock-table-wrap">${inner}</div>
+    </div>`;
+  }
+
+  if (b.type === 'log') {
+    if (!b.content) return '';
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.log}</div>
+      <div class="vblock-body vblock-log"><pre>${esc(b.content)}</pre></div>
+    </div>`;
+  }
+
+  if (b.type === 'table') {
+    if (!b.cols || !b.cols.length) return '';
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.table}</div>
+      <div class="vblock-body vblock-table-wrap">${renderTable(b.cols, b.rows || [])}</div>
+    </div>`;
+  }
+
+  if (b.type === 'image') {
+    if (!b.content) return '';
+    const fname = b.fileName || 'imagem';
+    const caption = b.caption ? `<div class="img-caption">📝 ${esc(b.caption)}</div>` : '';
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.image}${fname ? ` — <span style="font-weight:400;text-transform:none;letter-spacing:0">${esc(fname)}</span>` : ''}</div>
+      <div class="vblock-body vblock-image">
+        <img src="${b.content}" alt="${esc(b.caption || fname)}" onclick="openLightbox(this.src,'${esc(b.caption || fname).replace(/'/g,"\\'")}')">
+        ${caption}
+      </div>
+    </div>`;
+  }
+
+  if (b.type === 'attachment') {
+    if (!b.fileName) return '';
+    const isImg = (b.fileType || '').startsWith('image/');
+    const icon = isImg ? '🖼' : (b.fileType === 'application/pdf' ? '📄' : '📎');
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.attachment}</div>
+      <div class="vblock-body">
+        ${isImg && b.content ? `<img src="${b.content}" alt="${esc(b.fileName)}" style="max-width:100%;max-height:300px;border-radius:4px;margin-bottom:8px;display:block">` : ''}
+        <div class="vblock-attachment">
+          <span class="att-icon">${icon}</span>
+          <div class="att-info">
+            <div class="att-name">${esc(b.fileName)}</div>
+            <div class="att-meta">${esc(b.fileType || '')}${b.fileSize ? ' · ' + formatSize(b.fileSize) : ''}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (b.type === 'video') {
+    if (!b.src) return '';
+    const ytMatch = b.src.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    const vmMatch = b.src.match(/vimeo\.com\/(\d+)/);
+    let embed = '';
+    if (ytMatch) embed = `<iframe style="width:100%;aspect-ratio:16/9;border:none;border-radius:6px" src="https://www.youtube.com/embed/${ytMatch[1]}" allowfullscreen></iframe>`;
+    else if (vmMatch) embed = `<iframe style="width:100%;aspect-ratio:16/9;border:none;border-radius:6px" src="https://player.vimeo.com/video/${vmMatch[1]}" allowfullscreen></iframe>`;
+    else embed = `<video controls style="width:100%;border-radius:6px;background:#000"><source src="${esc(b.src)}"></video>`;
+    return `<div class="vblock">
+      <div class="vblock-label">${typeLabels.video}</div>
+      <div class="vblock-body">${embed}</div>
+    </div>`;
+  }
+
+  return '';
+}
+
+function renderTable(cols, rows) {
+  let h = `<table><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach(r => { h += `<tr>${cols.map((_, i) => `<td>${esc(r[i] || '')}</td>`).join('')}</tr>`; });
+  return h + '</tbody></table>';
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function navigate(dir) {
+  const visible = getVisibleSteps();
+  const viIdx = visible.indexOf(steps[currentIndex]);
+  const newViIdx = viIdx + dir;
+  if (newViIdx < 0 || newViIdx >= visible.length) return;
+  const nextStep = visible[newViIdx];
+  goTo(steps.indexOf(nextStep));
+}
+
+function goTo(globalIdx) {
+  if (globalIdx < 0 || globalIdx >= steps.length) return;
+  renderStep(globalIdx);
+  // Scroll nav item into view
+  setTimeout(() => {
+    const active = document.querySelector('.nav-item.active');
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, 50);
+}
+
+function updateNavFooter() {
+  const visible = getVisibleSteps();
+  const viIdx = visible.indexOf(steps[currentIndex]);
+  const total = visible.length;
+
+  document.getElementById('stepCounter').textContent = total ? `${viIdx + 1} de ${total}` : '';
+  document.getElementById('btnPrev').disabled = viIdx <= 0;
+  document.getElementById('btnNext').disabled = viIdx >= total - 1;
+  if (viIdx >= total - 1) {
+    document.getElementById('btnNext').textContent = '✓ Fim';
+    document.getElementById('btnNext').classList.remove('btn-primary');
+    document.getElementById('btnNext').classList.add('btn-ghost');
+  } else {
+    document.getElementById('btnNext').textContent = 'Próximo →';
+    document.getElementById('btnNext').classList.add('btn-primary');
+    document.getElementById('btnNext').classList.remove('btn-ghost');
+  }
+}
+
+// ── Filter ────────────────────────────────────────────────────
+function filterHighlights() {
+  filterMode = !filterMode;
+  const btn = document.querySelector('[onclick="filterHighlights()"]');
+  if (btn) {
+    btn.style.borderColor = filterMode ? 'var(--warning)' : '';
+    btn.style.color = filterMode ? 'var(--warning)' : '';
+  }
+  const visible = getVisibleSteps();
+  if (visible.length) {
+    currentIndex = steps.indexOf(visible[0]);
+    renderStep(currentIndex);
+  }
+  renderNav();
+}
+
+function toggleAllSteps() {
+  filterMode = false;
+  const btn = document.querySelector('[onclick="filterHighlights()"]');
+  if (btn) { btn.style.borderColor = ''; btn.style.color = ''; }
+  renderNav();
+  renderStep(currentIndex);
+}
+
+// ── Utils ─────────────────────────────────────────────────────
+function showEmpty(msg) {
+  document.getElementById('stepView').innerHTML = `<div class="empty"><div class="icon">🔬</div><p>${esc(msg)}</p></div>`;
+  document.getElementById('navList').innerHTML = '';
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+// ── Lightbox ──────────────────────────────────────────────────
+function openLightbox(src, caption) {
+  const lb = document.getElementById('lightbox');
+  lb.querySelector('img').src = src;
+  const cap = lb.querySelector('.lightbox-caption');
+  cap.textContent = caption || '';
+  cap.style.display = caption ? '' : 'none';
+  lb.classList.add('open');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="event.stopPropagation();closeLightbox()">✕</button>
+  <img src="" alt="" onclick="event.stopPropagation()">
+  <div class="lightbox-caption"></div>
+</div>
+</body>
+</html>

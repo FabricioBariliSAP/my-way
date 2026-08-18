@@ -3906,6 +3906,12 @@ function closeCasesModal() { document.getElementById('casesModal').classList.add
 
 function openViewPage() {
   syncMetaFromUI();
+  // Persist current state so VIEW.html can read it immediately
+  try {
+    localStorage.setItem(storageKey(), JSON.stringify(state));
+  } catch(e) {
+    // quota exceeded — server-saved cases will be loaded by VIEW.html via API
+  }
   const caseParam = state.caseId ? '?case=' + encodeURIComponent(state.caseId) : '';
   window.open('/VIEW.html' + caseParam, '_blank');
 }
