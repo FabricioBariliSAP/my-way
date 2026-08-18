@@ -3,3 +3,9 @@ contexto/
 data/
 knowledge_index.json
 .env
+.claude/
+skills/
+ANONIMIZER.txt
+INCIDENTE.txt
+MY WAY.bat
+call_script.txt
