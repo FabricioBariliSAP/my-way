@@ -308,7 +308,18 @@ const server = http.createServer(async (req, res) => {
   // ---- GET /api/rag-status ----
   if (req.method === 'GET' && req.url === '/api/rag-status') {
     const index = loadIndex();
-    sendJSON(200, { indexed: index.length, sources: index.map(e => e.source) });
+    const indexedSet = new Set(index.map(e => e.source));
+    const FILE_RE = /\.(zip|xml|txt|md)$/i;
+    const sources = [];
+    const SKILLS_DIR = path.join(__dirname, 'skills');
+    for (const [dir, prefix] of [[KNOWLEDGE_DIR, ''], [SKILLS_DIR, 'skills/']]) {
+      try {
+        fs.readdirSync(dir).filter(f => FILE_RE.test(f)).forEach(f => {
+          sources.push(prefix + f);
+        });
+      } catch {}
+    }
+    sendJSON(200, { indexed: index.length, sources });
     return;
   }
 
@@ -375,6 +386,15 @@ const server = http.createServer(async (req, res) => {
       (state.steps || []).forEach((s, i) => {
         invContext += `  ${i + 1}. [${s.findingType || 'info'}] ${s.title}\n`;
       });
+
+      // Append attached KBAs
+      if (state.attachedKbas && state.attachedKbas.length > 0) {
+        const kbaBlock = state.attachedKbas
+          .filter(k => k.text && k.text.trim())
+          .map(k => `[KBA ${k.number}: ${k.title}]\n${k.text.slice(0, 2000)}`)
+          .join('\n\n---\n\n');
+        if (kbaBlock) invContext += `\n\n## Attached KBAs\n\n${kbaBlock}`;
+      }
 
       const systemPrompt = customSystemPrompt || `You are an expert SAP support investigation assistant.
 Based on the current investigation context and similar past cases, suggest 3-5 concrete next investigation steps.
@@ -446,6 +466,79 @@ Return ONLY a valid JSON array (no markdown, no extra text):
       saveIndex(index);
 
       sendJSON(200, { ok: true, caseId: state.caseId });
+    } catch (e) {
+      sendJSON(500, { error: e.message });
+    }
+    return;
+  }
+
+  // ---- POST /api/kba-fetch ----
+  if (req.method === 'POST' && req.url === '/api/kba-fetch') {
+    try {
+      const body = await readBody(req);
+      const { number, manualText } = JSON.parse(body);
+      const num = String(number || '').replace(/\D/g, '');
+      if (!num) { sendJSON(400, { error: 'Invalid KBA number' }); return; }
+
+      const url = `https://me.sap.com/notes/${num}/E`;
+
+      if (manualText !== undefined) {
+        const title = `KBA ${num}`;
+        sendJSON(200, { number: num, url, title, text: String(manualText).slice(0, 6000), manual: true });
+        return;
+      }
+
+      const result = await new Promise((resolve, reject) => {
+        const r = https.request({
+          hostname: 'me.sap.com',
+          path: `/notes/${num}/E`,
+          method: 'GET',
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html,*/*' },
+          timeout: 12000,
+        }, res => {
+          if (res.statusCode >= 300 && res.statusCode < 400) {
+            res.resume();
+            resolve({ status: res.statusCode, redirect: true });
+            return;
+          }
+          let data = '';
+          res.on('data', c => { data += c; if (data.length > 300000) r.destroy(); });
+          res.on('end', () => resolve({ status: res.statusCode, html: data }));
+        });
+        r.on('error', reject);
+        r.on('timeout', () => { r.destroy(); reject(new Error('Timeout connecting to me.sap.com')); });
+        r.end();
+      });
+
+      if (result.redirect || result.status === 401 || result.status === 403) {
+        sendJSON(200, { number: num, url, title: `KBA ${num}`, text: '', needsManual: true,
+          hint: 'SAP for Me requires authentication. Paste the KBA content manually.' });
+        return;
+      }
+      if (result.status !== 200) {
+        sendJSON(200, { number: num, url, title: `KBA ${num}`, text: '', needsManual: true,
+          hint: `HTTP ${result.status} — paste the content manually.` });
+        return;
+      }
+
+      const html = result.html;
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      let title = titleMatch ? titleMatch[1].replace(/\s*[-|].*$/, '').trim() : `KBA ${num}`;
+      if (title.length < 3) title = `KBA ${num}`;
+
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+        .replace(/<header[\s\S]*?<\/header>/gi, '')
+        .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+        .replace(/ {2,}/g, ' ').replace(/\n{3,}/g, '\n\n')
+        .trim().slice(0, 6000);
+
+      sendJSON(200, { number: num, url, title, text });
     } catch (e) {
       sendJSON(500, { error: e.message });
     }
