@@ -5,6 +5,24 @@ Cada entrada representa um ponto de retorno (rollback point) versionado.
 
 ---
 
+## [2026-08-20 20:00] — Dialog de novidades, skill atualizada, melhorias de UX
+
+### Arquivos alterados
+- `CASE_HANDLING.html` — Adicionado dialog "O que há de novo" exibido ao abrir o sistema; aparece apenas quando há uma versão nova (comparado ao localStorage). Inclui CSS, HTML e função `checkWhatsNew()`.
+- `.claude/commands/changelog.md` — Skill atualizada com passo 3 que gera/atualiza `whatsnew.json` a cada execução, incrementando build e version automaticamente.
+- `whatsnew.json` *(novo)* — Arquivo de versão do app com build, version, date, title e lista de changes em português.
+
+### Ponto de retorno (rollback)
+Para reverter estas mudanças:
+```bash
+git revert HEAD --no-edit
+```
+
+### Notas
+O dialog é ignorável por versão: clicar em "Entendido!" grava o build atual em localStorage e não exibe novamente até o próximo incremento de `whatsnew.json`. A skill `/changelog` agora é responsável por manter esse arquivo atualizado a cada commit.
+
+---
+
 ## [2026-08-11 — commit inicial] — Setup inicial do repositório
 
 ### Arquivos incluídos

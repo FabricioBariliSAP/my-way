@@ -1,0 +1,16 @@
+{
+  "build": 2,
+  "version": "1.0.2",
+  "date": "2026-08-20",
+  "title": "Dialog de novidades e melhorias de upload",
+  "changes": [
+    "Novo dialog 'O que há de novo' aparece ao abrir o sistema com as últimas mudanças",
+    "O dialog pode ser ignorado — não volta até a próxima versão",
+    "Modal de logs aceita múltiplos arquivos via drag & drop ou seleção múltipla",
+    "Botão Attachment permite adicionar vários arquivos de uma vez, com descrição",
+    "Campo de descrição editável em todos os blocos de attachment existentes",
+    "@mention estendido: mencione anexos digitando @ + nome ou descrição do arquivo",
+    "Cases salvos em pasta física (data/); listagem lê diretamente do disco",
+    "Configuração de IA (chave, host, modelo) carregada do .env — sem valores hardcoded"
+  ]
+}

@@ -302,6 +302,11 @@
   .multi-attach-size { font-size:10px; color:var(--text3); }
   .multi-attach-desc { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:12px; padding:4px 8px; outline:none; font-family:var(--font); }
   .multi-attach-desc:focus { border-color:var(--accent); }
+  .whats-new-badge { display:inline-block; background:var(--accent); color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; letter-spacing:.5px; margin-right:6px; }
+  .whats-new-date { font-size:11px; color:var(--text3); margin-bottom:14px; }
+  .whats-new-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:7px; }
+  .whats-new-list li { display:flex; gap:8px; font-size:13px; color:var(--text); line-height:1.45; }
+  .whats-new-list li::before { content:"✦"; color:var(--accent); flex-shrink:0; font-size:10px; margin-top:2px; }
   .attach-desc-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:12px; padding:5px 8px; outline:none; font-family:var(--font); margin-top:6px; }
   .attach-desc-input:focus { border-color:var(--accent); }
   .multi-log-list { display:flex; flex-direction:column; gap:10px; max-height:55vh; overflow-y:auto; padding-right:2px; }
@@ -504,6 +509,25 @@
         <button class="btn btn-ghost" onclick="closePromptsModal()">Fechar</button>
         <button class="btn btn-primary" onclick="savePromptsModal()">💾 Salvar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- What's New Modal -->
+<div class="modal-overlay hidden" id="whatsNewModal">
+  <div class="modal" style="width:min(480px,95vw)">
+    <div class="modal-header">
+      <span style="font-size:18px">🆕</span>
+      <h2>O que há de novo <span id="whatsNewVersion" class="whats-new-badge"></span></h2>
+      <button class="btn btn-ghost btn-icon" id="whatsNewDismiss">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="whatsNewDate" class="whats-new-date"></div>
+      <div id="whatsNewTitleEl" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px"></div>
+      <ul class="whats-new-list" id="whatsNewList"></ul>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="whatsNewDismissBtn">Entendido!</button>
     </div>
   </div>
 </div>
@@ -1200,10 +1224,35 @@ let shortIdCounter = 0;
 function nextShortId() { return 'S' + (++shortIdCounter); }
 
 // ============================================================
+// WHAT'S NEW
+// ============================================================
+async function checkWhatsNew() {
+  try {
+    const r = await fetch('/whatsnew.json');
+    if (!r.ok) return;
+    const wn = await r.json();
+    const seen = parseInt(localStorage.getItem('app_seen_build') || '0');
+    if (wn.build <= seen) return;
+    const dismiss = () => {
+      localStorage.setItem('app_seen_build', String(wn.build));
+      document.getElementById('whatsNewModal').classList.add('hidden');
+    };
+    document.getElementById('whatsNewVersion').textContent = 'v' + wn.version;
+    document.getElementById('whatsNewDate').textContent = wn.date;
+    document.getElementById('whatsNewTitleEl').textContent = wn.title;
+    document.getElementById('whatsNewList').innerHTML = (wn.changes || []).map(c => `<li>${esc(c)}</li>`).join('');
+    document.getElementById('whatsNewDismiss').onclick = dismiss;
+    document.getElementById('whatsNewDismissBtn').onclick = dismiss;
+    document.getElementById('whatsNewModal').classList.remove('hidden');
+  } catch(_) {}
+}
+
+// ============================================================
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded', async () => {
   await loadLocal();
+  checkWhatsNew();
   window.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveLocal(); }
   });

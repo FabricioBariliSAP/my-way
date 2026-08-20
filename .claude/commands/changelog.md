@@ -45,12 +45,46 @@ Use a data atual em formato ISO. O título deve ser objetivo (ex: "Adiciona vali
 
 ---
 
-## 3. Criar commit semântico
+## 3. Atualizar whatsnew.json (dialog de novidades do app)
 
-Faça stage apenas dos arquivos relevantes (nunca `git add .` cegamente — revise com `git status` primeiro):
+Leia o arquivo `whatsnew.json` para obter o build e versão atuais:
+
+```bash
+cat "c:/Users/I742960/PROJETOS/AI AGENTS/MY_WAY/whatsnew.json"
+```
+
+Em seguida, escreva uma versão atualizada de `whatsnew.json` com:
+- `build`: incrementado em 1
+- `version`: incremento do patch (ex: `"1.0.2"` → `"1.0.3"`)
+- `date`: data atual no formato `YYYY-MM-DD`
+- `title`: título curto em **português** descrevendo as mudanças desta versão (max 60 chars)
+- `changes`: lista de **3 a 8 itens** em **português**, cada um descrevendo uma mudança visível ao usuário — extraídos do diff/status atual. Seja específico e use linguagem de usuário (não de desenvolvedor). Exemplo: `"Modal de logs aceita múltiplos arquivos via drag & drop"`.
+
+Formato exato do arquivo:
+```json
+{
+  "build": <número>,
+  "version": "<x.y.z>",
+  "date": "<YYYY-MM-DD>",
+  "title": "<título em português>",
+  "changes": [
+    "<mudança 1>",
+    "<mudança 2>"
+  ]
+}
+```
+
+Salve o arquivo. Ele será incluído no commit do próximo passo.
+
+---
+
+## 4. Criar commit semântico
+
+Faça stage dos arquivos relevantes **incluindo `whatsnew.json` e `CHANGELOG.md`** (nunca `git add .` cegamente — revise com `git status` primeiro):
 
 ```bash
 git -C "c:/Users/I742960/PROJETOS/AI AGENTS/MY_WAY" add -p   # ou adicione arquivos específicos
+git -C "c:/Users/I742960/PROJETOS/AI AGENTS/MY_WAY" add whatsnew.json CHANGELOG.md
 git -C "c:/Users/I742960/PROJETOS/AI AGENTS/MY_WAY" status   # confirme o que está staged
 ```
 
@@ -64,17 +98,9 @@ Crie o commit com mensagem semântica:
 
 Tipos válidos: `feat`, `fix`, `refactor`, `docs`, `chore`, `style`, `test`.
 
-Exemplo:
-```
-feat(server): move HAI_KEY to environment variable
-
-Hardcoded key replaced with process.env.HAI_KEY.
-Added .env.example and .gitignore to prevent accidental exposure.
-```
-
 ---
 
-## 4. Criar tag de ponto de retorno
+## 5. Criar tag de ponto de retorno
 
 ```bash
 git -C "c:/Users/I742960/PROJETOS/AI AGENTS/MY_WAY" tag -a "checkpoint-YYYY-MM-DD-HH" -m "<título da mudança>"
@@ -84,7 +110,7 @@ Use o timestamp exato do commit para a tag.
 
 ---
 
-## 5. Fazer push para GitHub
+## 6. Fazer push para GitHub
 
 ```bash
 git -C "c:/Users/I742960/PROJETOS/AI AGENTS/MY_WAY" push origin main
@@ -95,10 +121,11 @@ Se o push falhar por divergência de histórico, **não use force push**. Inform
 
 ---
 
-## 6. Reportar ao usuário
+## 7. Reportar ao usuário
 
 Ao finalizar, mostre:
 - Hash do commit criado
 - Tag criada
+- Versão registrada no `whatsnew.json` (build + version)
 - URL do commit no GitHub (formato: `https://github.com/fabriciobaril/my-way/commit/<hash>`)
 - Conteúdo da entrada adicionada ao CHANGELOG.md
