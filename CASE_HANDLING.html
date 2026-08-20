@@ -282,6 +282,20 @@
   .rag-doc-list { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; }
   .rag-doc-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
   .rag-doc-item input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; }
+  .case-list { display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; margin-bottom:14px; }
+  .case-list-item { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); }
+  .case-list-item:hover { border-color:var(--accent); }
+  .case-list-meta { flex:1; min-width:0; cursor:pointer; }
+  .case-list-id { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .case-list-customer { font-size:11px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .case-list-date { font-size:10px; color:var(--text3); margin-top:2px; }
+  .case-list-empty { font-size:12px; color:var(--text3); text-align:center; padding:16px 0; }
+  .multi-log-list { display:flex; flex-direction:column; gap:10px; max-height:60vh; overflow-y:auto; padding-right:2px; }
+  .multi-log-entry { display:flex; gap:8px; align-items:flex-start; }
+  .multi-log-entry textarea { flex:1; min-height:80px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:#86efac; font-family:var(--mono); font-size:12px; padding:8px; resize:vertical; }
+  .multi-log-entry textarea:focus { outline:none; border-color:var(--accent); }
+  .multi-log-remove { background:none; border:none; color:var(--text3); font-size:16px; cursor:pointer; padding:4px; line-height:1; margin-top:6px; flex-shrink:0; }
+  .multi-log-remove:hover { color:var(--danger); }
   @media print {
     body > * { display:none !important; }
     #guidePrintFrame { display:block !important; position:fixed; inset:0; width:100%; height:100%; overflow:auto; z-index:99999; }
@@ -412,27 +426,30 @@
 
 <!-- Cases Modal -->
 <div class="modal-overlay hidden" id="casesModal">
-  <div class="modal" style="width:min(500px,95vw)">
+  <div class="modal" style="width:min(520px,95vw)">
     <div class="modal-header">
       <span style="font-size:18px">🗂</span>
-      <h2>Open Case</h2>
+      <h2>Cases Salvos</h2>
       <button class="btn btn-ghost btn-icon" onclick="closeCasesModal()">✕</button>
     </div>
     <div class="modal-body">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Open a previously exported case (<strong>.zip</strong> or <strong>.xml</strong> file).</p>
-      <div class="drop-zone" id="casesDropZone" tabindex="0"
-        onclick="triggerCasesFilePicker()"
-        ondragover="event.preventDefault();document.getElementById('casesDropZone').classList.add('drag-over')"
-        ondragleave="document.getElementById('casesDropZone').classList.remove('drag-over')"
-        ondrop="handleCasesDrop(event)">
-        <div style="font-size:32px;margin-bottom:8px">🗂</div>
-        Click or drag a <strong>.zip</strong> or <strong>.xml</strong> file
-        <br><span style="font-size:11px;color:var(--text3)">Exported via the "📦 Package" button in Export / Generate</span>
-      </div>
+      <div id="casesList" class="case-list"><div class="case-list-empty">Carregando...</div></div>
+      <details style="margin-top:4px">
+        <summary style="font-size:11px;color:var(--text3);cursor:pointer;user-select:none">Importar arquivo (.zip / .xml)</summary>
+        <div style="margin-top:10px">
+          <div class="drop-zone" id="casesDropZone" tabindex="0"
+            onclick="triggerCasesFilePicker()"
+            ondragover="event.preventDefault();document.getElementById('casesDropZone').classList.add('drag-over')"
+            ondragleave="document.getElementById('casesDropZone').classList.remove('drag-over')"
+            ondrop="handleCasesDrop(event)">
+            <div style="font-size:28px;margin-bottom:6px">🗂</div>
+            Clique ou arraste um arquivo <strong>.zip</strong> ou <strong>.xml</strong>
+          </div>
+        </div>
+      </details>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeCasesModal()">Close</button>
-      <button class="btn btn-primary btn-sm" onclick="triggerCasesFilePicker()">Open file...</button>
+      <button class="btn btn-ghost" onclick="closeCasesModal()">Fechar</button>
     </div>
   </div>
 </div>
@@ -477,10 +494,30 @@
   </div>
 </div>
 
+<!-- Multi-Log Modal -->
+<div class="modal-overlay hidden" id="multiLogModal">
+  <div class="modal" style="width:min(600px,95vw)">
+    <div class="modal-header">
+      <span style="font-size:18px">📋</span>
+      <h2>Adicionar Logs</h2>
+      <button class="btn btn-ghost btn-icon" onclick="closeMultiLogModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="multi-log-list" id="multiLogList"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="addLogEntry()">+ Adicionar outro log</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeMultiLogModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmMultiLog()">✓ Adicionar logs</button>
+    </div>
+  </div>
+</div>
+
 <div class="notif" id="notif"></div>
 
 <div id="guidePrintFrame" style="display:none"></div>
 
+<script src="/config.js"></script>
 <script>
 // ============================================================
 // CONFIG
@@ -688,9 +725,9 @@ function anonymizeForAI(text) {
 // ============================================================
 // When served via Node proxy, use relative path to avoid CORS.
 // When opened as file://, falls back to direct call (may fail due to browser CORS policy).
-const AI_HOST = window.location.protocol === 'file:' ? 'http://localhost:6655' : '';
-const AI_API_KEY = '49237684-8df6-4ce7-84ae-ec3bb1d2e5ec';
-const AI_MODEL = 'gpt-4.1';
+const AI_HOST = window.__aiConfig ? window.__aiConfig.aiHost : (window.location.protocol === 'file:' ? 'http://localhost:6655' : '');
+const AI_API_KEY = (window.__aiConfig && window.__aiConfig.apiKey) || '';
+const AI_MODEL = (window.__aiConfig && window.__aiConfig.aiModel) || 'gpt-5.5';
 
 // ============================================================
 // PROMPTS — editable defaults
@@ -1343,6 +1380,59 @@ function addBlock(stepId, type) {
     const scroll = document.getElementById('blocksScroll_' + stepId);
     if (scroll) scroll.scrollTop = scroll.scrollHeight;
   }, 50);
+}
+
+let _multiLogStepId = null;
+
+function openMultiLogModal(stepId) {
+  _multiLogStepId = stepId;
+  const list = document.getElementById('multiLogList');
+  list.innerHTML = '';
+  addLogEntry();
+  document.getElementById('multiLogModal').classList.remove('hidden');
+}
+
+function addLogEntry() {
+  const list = document.getElementById('multiLogList');
+  const idx = list.children.length;
+  const div = document.createElement('div');
+  div.className = 'multi-log-entry';
+  div.innerHTML = `<textarea placeholder="Cole o conteúdo do log ${idx + 1} aqui..."></textarea>` +
+    (idx > 0 ? `<button class="multi-log-remove" onclick="removeLogEntry(this)" title="Remover">✕</button>` : `<span style="width:24px;flex-shrink:0"></span>`);
+  list.appendChild(div);
+  div.querySelector('textarea').focus();
+}
+
+function removeLogEntry(btn) {
+  btn.closest('.multi-log-entry').remove();
+}
+
+function confirmMultiLog() {
+  const step = state.steps.find(s => s.id === _multiLogStepId);
+  if (!step) return;
+  const entries = document.querySelectorAll('#multiLogList textarea');
+  let added = 0;
+  entries.forEach(ta => {
+    const content = ta.value.trim();
+    if (content) {
+      step.blocks.push({ id: uid(), type: 'log', content, cols: [], rows: [] });
+      added++;
+    }
+  });
+  if (added > 0) {
+    markDirty(); renderMain();
+    setTimeout(() => {
+      const scroll = document.getElementById('blocksScroll_' + _multiLogStepId);
+      if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    }, 50);
+    showNotif(added === 1 ? 'Log adicionado ✓' : `${added} logs adicionados ✓`, 'success');
+  }
+  closeMultiLogModal();
+}
+
+function closeMultiLogModal() {
+  document.getElementById('multiLogModal').classList.add('hidden');
+  _multiLogStepId = null;
 }
 
 function removeBlock(stepId, blockId) {
@@ -2063,7 +2153,7 @@ function renderMain() {
           <button class="block-type-btn" onclick="addBlock('${step.id}','text')"><span>📝</span>Text</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','sqlquery')"><span>🗄</span>SQL Query</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','sqlresult')"><span>📋</span>SQL Result</button>
-          <button class="block-type-btn" onclick="addBlock('${step.id}','log')"><span>📋</span>Log</button>
+          <button class="block-type-btn" onclick="openMultiLogModal('${step.id}')"><span>📋</span>Log</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','table')"><span>📊</span>Table</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','image')"><span>🖼</span>Image</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','video')"><span>🎬</span>Video</button>
@@ -3592,62 +3682,47 @@ function storageKey() {
   return state.caseId ? 'sap_case_' + state.caseId : 'sap_case__unsaved';
 }
 
-function saveIndex(caseId) {
-  try {
-    const raw = localStorage.getItem('sap_cases');
-    const list = raw ? JSON.parse(raw) : [];
-    const now = new Date().toISOString();
-    const existing = list.find(c => c.id === caseId);
-    if (existing) { existing.savedAt = now; existing.customer = state.customerName || ''; }
-    else { list.push({ id: caseId, customer: state.customerName || '', createdAt: now, savedAt: now }); }
-    localStorage.setItem('sap_cases', JSON.stringify(list));
-  } catch(e) {}
-}
-
 function saveLocal() {
   syncMetaFromUI();
-  try {
-    localStorage.setItem(storageKey(), JSON.stringify(state));
-    if (state.caseId) {
-      saveIndex(state.caseId);
-      history.replaceState(null, '', '?case=' + encodeURIComponent(state.caseId));
-    }
-    showNotif('Saved ✓', 'success');
-    state.dirty = false;
-  } catch(e) {
-    if (state.caseId && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)) {
-      fetch('/api/save-state', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ state }) })
-        .then(r => { if (r.ok) { showNotif('Saved ✓', 'success'); state.dirty = false; } else showNotif('Save failed', 'danger'); })
-        .catch(() => showNotif('Save failed', 'danger'));
-      if (state.caseId) { saveIndex(state.caseId); history.replaceState(null, '', '?case=' + encodeURIComponent(state.caseId)); }
-    } else { showNotif('Save failed: storage full?', 'danger'); }
-  }
+  if (!state.caseId) { showNotif('Defina um Case ID antes de salvar', 'danger'); return; }
+  fetch('/api/save-state', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ state }) })
+    .then(r => {
+      if (r.ok) {
+        history.replaceState(null, '', '?case=' + encodeURIComponent(state.caseId));
+        showNotif('Saved ✓', 'success');
+        state.dirty = false;
+      } else showNotif('Save failed', 'danger');
+    })
+    .catch(() => {
+      try {
+        localStorage.setItem(storageKey(), JSON.stringify(state));
+        showNotif('Saved locally (offline) ✓', 'warning');
+        state.dirty = false;
+      } catch(e) { showNotif('Save failed', 'danger'); }
+    });
 }
 
 async function loadLocal() {
   try {
-    // Determine which case to load: ?case=ID in URL, or last saved, or legacy key
     const params = new URLSearchParams(location.search);
     const requestedId = params.get('case');
     let saved = null;
     if (requestedId) {
-      saved = localStorage.getItem('sap_case_' + requestedId);
-      if (!saved) {
-        try {
-          const r = await fetch('/api/load-state/' + encodeURIComponent(requestedId));
-          if (r.ok) { const { state: s } = await r.json(); saved = JSON.stringify(s); }
-        } catch(_) {}
-      }
+      // Server is primary source
+      try {
+        const r = await fetch('/api/load-state/' + encodeURIComponent(requestedId));
+        if (r.ok) { const { state: s } = await r.json(); saved = JSON.stringify(s); }
+      } catch(_) {}
+      // Fall back to localStorage cache (e.g. offline)
+      if (!saved) saved = localStorage.getItem('sap_case_' + requestedId);
     }
     if (!saved) {
-      // Try to migrate legacy single-case storage
+      // Migrate legacy single-case storage
       saved = localStorage.getItem('sap_investigation');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Migrate: store under proper key and remove old key
         const legacyKey = parsed.caseId ? 'sap_case_' + parsed.caseId : 'sap_case__unsaved';
         localStorage.setItem(legacyKey, saved);
-        if (parsed.caseId) saveIndex(parsed.caseId);
         localStorage.removeItem('sap_investigation');
         saved = localStorage.getItem(legacyKey);
       }
@@ -3901,8 +3976,46 @@ function applyImportedState(newState) {
 // ============================================================
 // CASES MODAL
 // ============================================================
-function openCasesModal() { document.getElementById('casesModal').classList.remove('hidden'); }
+function openCasesModal() {
+  document.getElementById('casesModal').classList.remove('hidden');
+  const list = document.getElementById('casesList');
+  list.innerHTML = '<div class="case-list-empty">Carregando...</div>';
+  fetch('/api/list-states')
+    .then(r => r.json())
+    .then(({ states }) => {
+      if (!states || states.length === 0) {
+        list.innerHTML = '<div class="case-list-empty">Nenhum case salvo encontrado.</div>';
+        return;
+      }
+      list.innerHTML = states.map(c => {
+        const date = c.savedAt ? new Date(c.savedAt).toLocaleString('pt-BR') : '';
+        return `<div class="case-list-item">
+          <div class="case-list-meta" onclick="loadCaseFromServer('${esc(c.id)}')">
+            <div class="case-list-id">📁 ${esc(c.id)}</div>
+            ${c.customer ? `<div class="case-list-customer">${esc(c.customer)}</div>` : ''}
+            <div class="case-list-date">${date}</div>
+          </div>
+          <button class="btn btn-ghost btn-icon btn-sm" title="Excluir" onclick="deleteCaseFromServer('${esc(c.id)}')">🗑</button>
+        </div>`;
+      }).join('');
+    })
+    .catch(() => { list.innerHTML = '<div class="case-list-empty">Erro ao carregar cases.</div>'; });
+}
+
 function closeCasesModal() { document.getElementById('casesModal').classList.add('hidden'); }
+
+function loadCaseFromServer(caseId) {
+  closeCasesModal();
+  history.pushState(null, '', '?case=' + encodeURIComponent(caseId));
+  location.reload();
+}
+
+function deleteCaseFromServer(caseId) {
+  if (!confirm(`Excluir o case "${caseId}"? Esta ação não pode ser desfeita.`)) return;
+  fetch('/api/delete-state/' + encodeURIComponent(caseId), { method: 'DELETE' })
+    .then(r => r.ok ? openCasesModal() : showNotif('Erro ao excluir', 'danger'))
+    .catch(() => showNotif('Erro ao excluir', 'danger'));
+}
 
 function openViewPage() {
   syncMetaFromUI();
@@ -3944,16 +4057,9 @@ function openCaseFile(file) {
 }
 
 window.addEventListener('beforeunload', () => {
-  if (state.dirty) {
+  if (state.dirty && state.caseId) {
     syncMetaFromUI();
-    try {
-      localStorage.setItem(storageKey(), JSON.stringify(state));
-      if (state.caseId) saveIndex(state.caseId);
-    } catch(e) {
-      if (state.caseId && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)) {
-        navigator.sendBeacon('/api/save-state', JSON.stringify({ state }));
-      }
-    }
+    navigator.sendBeacon('/api/save-state', JSON.stringify({ state }));
   }
 });
 

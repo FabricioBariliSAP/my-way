@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 3000;
 const AI_HOST = process.env.AI_HOST || 'http://localhost:6655';
 const HAI_KEY = process.env.HAI_KEY || '';
 const EMBED_MODEL = 'text-embedding-3-small';
-const CHAT_MODEL = 'gpt-4.1';
+const CHAT_MODEL = process.env.AI_MODEL || 'gpt-5.5';
 const KNOWLEDGE_DIR = path.join(__dirname, 'knowledge');
 const INDEX_FILE = path.join(__dirname, 'knowledge_index.json');
 const DATA_DIR = path.join(__dirname, 'data');
@@ -824,6 +824,15 @@ Return ONLY a valid JSON array (no markdown, no extra text):
       const safeId = String(state.caseId).replace(/[^a-zA-Z0-9_-]/g, '_');
       const filePath = path.join(DATA_DIR, `case_${safeId}.enc`);
       fs.writeFileSync(filePath, encryptState(state), 'utf8');
+      // Update cases_meta.json
+      const metaPath = path.join(DATA_DIR, 'cases_meta.json');
+      let meta = [];
+      try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch(_) {}
+      const now = new Date().toISOString();
+      const existing = meta.find(m => m.id === safeId);
+      if (existing) { existing.savedAt = now; existing.customer = state.customerName || existing.customer || ''; }
+      else { meta.push({ id: safeId, customer: state.customerName || '', createdAt: now, savedAt: now }); }
+      fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf8');
       sendJSON(200, { ok: true, file: `data/case_${safeId}.enc` });
     } catch (e) {
       sendJSON(500, { error: e.message });
@@ -835,13 +844,20 @@ Return ONLY a valid JSON array (no markdown, no extra text):
   if (req.method === 'GET' && req.url === '/api/list-states') {
     try {
       fs.mkdirSync(DATA_DIR, { recursive: true });
-      const files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.enc'));
-      const states = files.map(f => ({
-        file: f,
-        caseId: f.replace(/^case_/, '').replace(/\.enc$/, ''),
-        savedAt: fs.statSync(path.join(DATA_DIR, f)).mtime.toISOString(),
-      }));
-      sendJSON(200, { states });
+      const metaPath = path.join(DATA_DIR, 'cases_meta.json');
+      let meta = [];
+      try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch(_) {}
+      // Only return entries whose .enc file actually exists
+      const encFiles = new Set(fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.enc')).map(f => f.replace(/^case_/, '').replace(/\.enc$/, '')));
+      const states = meta.filter(m => encFiles.has(m.id));
+      // Add any .enc files not yet in meta (legacy)
+      encFiles.forEach(id => {
+        if (!meta.find(m => m.id === id)) {
+          const mtime = fs.statSync(path.join(DATA_DIR, `case_${id}.enc`)).mtime.toISOString();
+          states.push({ id, customer: '', createdAt: mtime, savedAt: mtime });
+        }
+      });
+      sendJSON(200, { states: states.sort((a, b) => b.savedAt.localeCompare(a.savedAt)) });
     } catch (e) {
       sendJSON(500, { error: e.message });
     }
@@ -871,10 +887,29 @@ Return ONLY a valid JSON array (no markdown, no extra text):
       const filePath = path.join(DATA_DIR, `case_${safeId}.enc`);
       if (!fs.existsSync(filePath)) { sendJSON(404, { error: 'State not found' }); return; }
       fs.unlinkSync(filePath);
+      // Remove from cases_meta.json
+      const metaPath = path.join(DATA_DIR, 'cases_meta.json');
+      try {
+        let meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        meta = meta.filter(m => m.id !== safeId);
+        fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+      } catch(_) {}
       sendJSON(200, { ok: true });
     } catch (e) {
       sendJSON(500, { error: e.message });
     }
+    return;
+  }
+
+  // ---- Expose AI config to frontend ----
+  if (req.url === '/config.js') {
+    const cfg = JSON.stringify({
+      apiKey: process.env.HAI_KEY || '',
+      aiHost: '',
+      aiModel: process.env.AI_MODEL || 'gpt-5.5',
+    });
+    res.writeHead(200, { 'Content-Type': 'application/javascript' });
+    res.end(`window.__aiConfig = ${cfg};`);
     return;
   }
 
