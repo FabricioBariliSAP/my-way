@@ -192,6 +192,10 @@
   .step-mention { display:inline-flex; align-items:center; gap:3px; background:#4f7cff22; color:var(--accent); border:1px solid #4f7cff55; border-radius:4px; padding:0 5px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; user-select:text; line-height:1.6; }
   .step-mention:hover { background:#4f7cff44; border-color:var(--accent); }
   .step-mention .sm-title { font-weight:400; color:var(--text2); font-size:10px; margin-left:2px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* Attachment mention chips */
+  .attach-mention { display:inline-flex; align-items:center; gap:3px; background:#8b5cf622; color:#c4b5fd; border:1px solid #8b5cf655; border-radius:4px; padding:0 5px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; user-select:text; line-height:1.6; }
+  .attach-mention:hover { background:#8b5cf644; border-color:#c4b5fd; }
+  .attach-mention .am-label { font-weight:400; color:#a78bfa; font-size:10px; margin-left:2px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   /* ---- AI RAG ---- */
   .ai-badge { display:inline-flex; align-items:center; background:linear-gradient(135deg,#4f7cff,#7c5fff); color:#fff; font-size:9px; font-weight:700; padding:1px 6px; border-radius:99px; margin-left:5px; vertical-align:middle; letter-spacing:0.3px; }
   .ai-step-banner { background:#4f7cff0d; border-left:3px solid var(--accent); padding:8px 16px; font-size:12px; color:var(--text2); display:flex; align-items:center; gap:10px; flex-shrink:0; }
@@ -290,7 +294,17 @@
   .case-list-customer { font-size:11px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .case-list-date { font-size:10px; color:var(--text3); margin-top:2px; }
   .case-list-empty { font-size:12px; color:var(--text3); text-align:center; padding:16px 0; }
-  .multi-log-list { display:flex; flex-direction:column; gap:10px; max-height:60vh; overflow-y:auto; padding-right:2px; }
+  .multi-log-dropzone { display:flex; align-items:center; gap:8px; padding:10px 14px; border:2px dashed var(--border); border-radius:var(--radius); color:var(--text3); font-size:12px; margin-bottom:12px; transition:border-color .15s,background .15s; }
+  .multi-log-dropzone.drag-over { border-color:var(--accent); background:#4f7cff11; color:var(--text); }
+  .multi-attach-entry { display:flex; gap:8px; align-items:flex-start; padding:8px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); }
+  .multi-attach-file-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .multi-attach-name { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .multi-attach-size { font-size:10px; color:var(--text3); }
+  .multi-attach-desc { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:12px; padding:4px 8px; outline:none; font-family:var(--font); }
+  .multi-attach-desc:focus { border-color:var(--accent); }
+  .attach-desc-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:12px; padding:5px 8px; outline:none; font-family:var(--font); margin-top:6px; }
+  .attach-desc-input:focus { border-color:var(--accent); }
+  .multi-log-list { display:flex; flex-direction:column; gap:10px; max-height:55vh; overflow-y:auto; padding-right:2px; }
   .multi-log-entry { display:flex; gap:8px; align-items:flex-start; }
   .multi-log-entry textarea { flex:1; min-height:80px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:#86efac; font-family:var(--mono); font-size:12px; padding:8px; resize:vertical; }
   .multi-log-entry textarea:focus { outline:none; border-color:var(--accent); }
@@ -494,17 +508,57 @@
   </div>
 </div>
 
+<!-- Multi-Attach Modal -->
+<div class="modal-overlay hidden" id="multiAttachModal">
+  <div class="modal" style="width:min(620px,95vw)">
+    <div class="modal-header">
+      <span style="font-size:18px">📎</span>
+      <h2>Adicionar Attachments</h2>
+      <button class="btn btn-ghost btn-icon" onclick="closeMultiAttachModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="multi-log-dropzone" id="multiAttachDropZone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleMultiAttachDrop(event)">
+        <span style="font-size:20px">📂</span>
+        Arraste arquivos aqui
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin-left:8px">
+          Selecionar arquivos
+          <input type="file" multiple style="display:none" onchange="handleMultiAttachSelect(this)">
+        </label>
+      </div>
+      <div id="multiAttachList" style="display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeMultiAttachModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmMultiAttach()">✓ Adicionar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Multi-Log Modal -->
 <div class="modal-overlay hidden" id="multiLogModal">
-  <div class="modal" style="width:min(600px,95vw)">
+  <div class="modal" style="width:min(620px,95vw)">
     <div class="modal-header">
       <span style="font-size:18px">📋</span>
       <h2>Adicionar Logs</h2>
       <button class="btn btn-ghost btn-icon" onclick="closeMultiLogModal()">✕</button>
     </div>
     <div class="modal-body">
+      <div class="multi-log-dropzone" id="multiLogDropZone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleLogFileDrop(event)">
+        <span style="font-size:20px">📂</span>
+        Arraste arquivos de log aqui
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin-left:8px">
+          Selecionar arquivos
+          <input type="file" multiple style="display:none" onchange="handleLogFileSelect(this)">
+        </label>
+      </div>
       <div class="multi-log-list" id="multiLogList"></div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="addLogEntry()">+ Adicionar outro log</button>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="addLogEntry()">+ Adicionar entrada manual</button>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeMultiLogModal()">Cancelar</button>
@@ -1158,20 +1212,39 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Navigate to referenced step when a mention chip is clicked
   document.addEventListener('click', e => {
-    const chip = e.target.closest('.step-mention');
-    if (!chip) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const shortId = chip.dataset.mention;
-    if (!shortId) return;
-    const step = state.steps.find(s => s.shortId && s.shortId.toUpperCase() === shortId.toUpperCase());
-    if (!step) { showNotif(`Step @${shortId} not found`, 'danger'); return; }
-    selectStep(step.id);
-    // Scroll the step into view in the sidebar
-    setTimeout(() => {
-      const item = document.querySelector(`[data-sid="${step.id}"]`);
-      if (item) item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }, 60);
+    const stepChip = e.target.closest('.step-mention');
+    if (stepChip) {
+      e.preventDefault(); e.stopPropagation();
+      const shortId = stepChip.dataset.mention;
+      if (!shortId) return;
+      const step = state.steps.find(s => s.shortId && s.shortId.toUpperCase() === shortId.toUpperCase());
+      if (!step) { showNotif(`Step @${shortId} not found`, 'danger'); return; }
+      selectStep(step.id);
+      setTimeout(() => {
+        const item = document.querySelector(`[data-sid="${step.id}"]`);
+        if (item) item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 60);
+      return;
+    }
+    const attachChip = e.target.closest('.attach-mention');
+    if (attachChip) {
+      e.preventDefault(); e.stopPropagation();
+      const blockId = attachChip.dataset.attachId;
+      if (!blockId) return;
+      for (const step of state.steps) {
+        const block = step.blocks.find(b => b.id === blockId);
+        if (block) {
+          selectStep(step.id);
+          setTimeout(() => {
+            const el = document.querySelector(`[data-blockid="${blockId}"]`) ||
+                       document.getElementById('block_' + blockId);
+            if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 80);
+          return;
+        }
+      }
+      showNotif('Attachment not found', 'danger');
+    }
   });
 });
 
@@ -1388,19 +1461,40 @@ function openMultiLogModal(stepId) {
   _multiLogStepId = stepId;
   const list = document.getElementById('multiLogList');
   list.innerHTML = '';
+  document.getElementById('multiLogDropZone').classList.remove('drag-over');
   addLogEntry();
   document.getElementById('multiLogModal').classList.remove('hidden');
 }
 
-function addLogEntry() {
+function addLogEntry(content, label) {
   const list = document.getElementById('multiLogList');
   const idx = list.children.length;
   const div = document.createElement('div');
   div.className = 'multi-log-entry';
-  div.innerHTML = `<textarea placeholder="Cole o conteúdo do log ${idx + 1} aqui..."></textarea>` +
+  const placeholder = label ? esc(label) : `Cole o conteúdo do log ${idx + 1} aqui...`;
+  div.innerHTML = `<textarea placeholder="${placeholder}">${content ? esc(content) : ''}</textarea>` +
     (idx > 0 ? `<button class="multi-log-remove" onclick="removeLogEntry(this)" title="Remover">✕</button>` : `<span style="width:24px;flex-shrink:0"></span>`);
   list.appendChild(div);
-  div.querySelector('textarea').focus();
+  if (!content) div.querySelector('textarea').focus();
+}
+
+function handleLogFileDrop(event) {
+  event.preventDefault();
+  document.getElementById('multiLogDropZone').classList.remove('drag-over');
+  loadLogFiles(Array.from(event.dataTransfer.files));
+}
+
+function handleLogFileSelect(input) {
+  loadLogFiles(Array.from(input.files));
+  input.value = '';
+}
+
+function loadLogFiles(files) {
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => addLogEntry(ev.target.result, file.name);
+    reader.readAsText(file);
+  });
 }
 
 function removeLogEntry(btn) {
@@ -1464,6 +1558,86 @@ function loadAttachmentFile(file, stepId, blockId) {
   reader.readAsDataURL(file);
 }
 
+// ── Multi-attach modal ─────────────────────────────────────────
+let _multiAttachStepId = null;
+let _multiAttachFiles = []; // { file, dataUrl }
+
+function openMultiAttachModal(stepId) {
+  _multiAttachStepId = stepId;
+  _multiAttachFiles = [];
+  document.getElementById('multiAttachList').innerHTML = '';
+  document.getElementById('multiAttachDropZone').classList.remove('drag-over');
+  document.getElementById('multiAttachModal').classList.remove('hidden');
+}
+
+function closeMultiAttachModal() {
+  document.getElementById('multiAttachModal').classList.add('hidden');
+  _multiAttachStepId = null;
+  _multiAttachFiles = [];
+}
+
+function handleMultiAttachDrop(event) {
+  event.preventDefault();
+  document.getElementById('multiAttachDropZone').classList.remove('drag-over');
+  loadMultiAttachFiles(Array.from(event.dataTransfer.files));
+}
+
+function handleMultiAttachSelect(input) {
+  loadMultiAttachFiles(Array.from(input.files));
+  input.value = '';
+}
+
+function loadMultiAttachFiles(files) {
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const idx = _multiAttachFiles.length;
+      _multiAttachFiles.push({ file, dataUrl: ev.target.result });
+      const list = document.getElementById('multiAttachList');
+      const icon = file.type.startsWith('image/') ? '🖼' : file.type === 'application/pdf' ? '📄' : '📎';
+      const div = document.createElement('div');
+      div.className = 'multi-attach-entry';
+      div.setAttribute('data-idx', idx);
+      div.innerHTML = `<span style="font-size:20px;flex-shrink:0">${icon}</span>
+        <div class="multi-attach-file-info">
+          <div class="multi-attach-name" title="${esc(file.name)}">${esc(file.name)}</div>
+          <div class="multi-attach-size">${formatFileSize(file.size)}</div>
+          <input class="multi-attach-desc" type="text" placeholder="Descreva este arquivo (opcional)...">
+        </div>
+        <button class="multi-log-remove" onclick="this.closest('.multi-attach-entry').remove()" title="Remover">✕</button>`;
+      list.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function confirmMultiAttach() {
+  const step = state.steps.find(s => s.id === _multiAttachStepId);
+  if (!step) return;
+  const entries = document.querySelectorAll('#multiAttachList .multi-attach-entry');
+  let added = 0;
+  entries.forEach(row => {
+    const idx = parseInt(row.getAttribute('data-idx'));
+    const item = _multiAttachFiles[idx];
+    if (!item) return;
+    const desc = row.querySelector('.multi-attach-desc')?.value.trim() || '';
+    const block = { id: uid(), type: 'attachment', content: item.dataUrl,
+      fileName: item.file.name, fileType: item.file.type || 'application/octet-stream',
+      fileSize: item.file.size, description: desc, cols: [], rows: [] };
+    step.blocks.push(block);
+    added++;
+  });
+  if (added > 0) {
+    markDirty(); renderMain();
+    setTimeout(() => {
+      const scroll = document.getElementById('blocksScroll_' + _multiAttachStepId);
+      if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    }, 50);
+    showNotif(added === 1 ? 'Attachment adicionado ✓' : `${added} attachments adicionados ✓`, 'success');
+  }
+  closeMultiAttachModal();
+}
+
 function triggerAttachmentUpload(stepId, blockId) {
   const input = document.createElement('input');
   input.type = 'file';
@@ -1485,6 +1659,12 @@ function clearAttachment(stepId, blockId) {
   const step = state.steps.find(s => s.id === stepId);
   const block = step?.blocks.find(b => b.id === blockId);
   if (block) { block.content = ''; block.fileName = ''; block.fileType = ''; block.fileSize = 0; markDirty(); renderMain(); }
+}
+
+function updateAttachmentDesc(stepId, blockId, value) {
+  const step = state.steps.find(s => s.id === stepId);
+  const block = step?.blocks.find(b => b.id === blockId);
+  if (block) { block.description = value; markDirty(); }
 }
 
 function downloadAttachment(stepId, blockId) {
@@ -1844,11 +2024,24 @@ function _detectMention(el) {
   const text = container.textContent;
   const pos = range.startOffset;
   const before = text.slice(0, pos);
-  const match = before.match(/@(\w{0,4})$/);
+  const match = before.match(/@([\w.-]{0,40})$/);
   if (!match) { _hideMention(); return; }
   const query = match[1].toUpperCase();
+
+  // Steps matching shortId prefix
   const steps = state.steps.filter(s => s.shortId && s.shortId.toUpperCase().startsWith(query));
-  if (!steps.length) { _hideMention(); return; }
+
+  // Attachments: search by description or filename (case-insensitive contains)
+  const attachments = [];
+  state.steps.forEach(s => {
+    s.blocks.forEach(b => {
+      if (b.type !== 'attachment' || !b.content) return;
+      const alias = (b.description || b.fileName || '').toUpperCase();
+      if (!query || alias.includes(query)) attachments.push(b);
+    });
+  });
+
+  if (!steps.length && !attachments.length) { _hideMention(); return; }
   _mentionEl = el;
   range.collapse(false);
   const rect = range.getBoundingClientRect();
@@ -1856,12 +2049,22 @@ function _detectMention(el) {
   popup.style.left = rect.left + 'px';
   popup.style.top = (rect.bottom + 4) + 'px';
   popup.style.display = 'block';
-  popup.innerHTML = steps.map((s, i) =>
-    `<div class="mention-item${i===0?' active':''}" onmousedown="event.preventDefault();_insertMention('${s.shortId}')">
+
+  const stepItems = steps.map((s, i) =>
+    `<div class="mention-item${i===0&&!attachments.length?' active':''}" onmousedown="event.preventDefault();_insertMention('${s.shortId}')">
       <span class="mention-shortid">@${s.shortId}</span>
       <span style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.title)}</span>
     </div>`
-  ).join('');
+  );
+  const attachItems = attachments.map((b, i) => {
+    const alias = b.description || b.fileName || 'attachment';
+    const icon = (b.fileType||'').startsWith('image/') ? '🖼' : (b.fileType||'') === 'application/pdf' ? '📄' : '📎';
+    return `<div class="mention-item${i===0&&!steps.length?' active':''}" onmousedown="event.preventDefault();_insertAttachMention('${b.id}')">
+      <span style="color:#c4b5fd;font-weight:700;min-width:28px">${icon}</span>
+      <span style="color:#a78bfa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(alias)}</span>
+    </div>`;
+  });
+  popup.innerHTML = stepItems.join('') + (attachItems.length ? (stepItems.length ? `<div style="border-top:1px solid var(--border);margin:2px 0"></div>` : '') + attachItems.join('') : '');
   _mentionRange = sel.getRangeAt(0).cloneRange();
 }
 function _hideMention() {
@@ -1905,6 +2108,53 @@ function _insertMention(shortId) {
   // Place cursor after the chip
   const newRange = document.createRange();
   newRange.setStart(afterNode, 1); // after zero-width space
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+
+  onRichInput(_mentionEl);
+  _hideMention();
+}
+
+function _insertAttachMention(blockId) {
+  if (!_mentionEl) return;
+  _mentionEl.focus();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const container = range.startContainer;
+  if (container.nodeType !== Node.TEXT_NODE) return;
+  const text = container.textContent;
+  const pos = range.startOffset;
+  const before = text.slice(0, pos);
+  const atIdx = before.lastIndexOf('@');
+  if (atIdx === -1) return;
+
+  // Find block across all steps
+  let block = null;
+  for (const s of state.steps) { block = s.blocks.find(b => b.id === blockId); if (block) break; }
+  if (!block) return;
+  const alias = block.description || block.fileName || 'attachment';
+  const icon = (block.fileType||'').startsWith('image/') ? '🖼' : (block.fileType||'') === 'application/pdf' ? '📄' : '📎';
+
+  const before_text = text.slice(0, atIdx);
+  const after_text  = text.slice(pos);
+  const parent = container.parentNode;
+
+  const beforeNode = document.createTextNode(before_text);
+  const chip = document.createElement('span');
+  chip.className = 'attach-mention';
+  chip.contentEditable = 'false';
+  chip.dataset.attachId = blockId;
+  chip.innerHTML = `${icon} ${esc(alias)}`;
+  const afterNode = document.createTextNode('​' + after_text);
+
+  parent.replaceChild(afterNode, container);
+  parent.insertBefore(chip, afterNode);
+  parent.insertBefore(beforeNode, chip);
+
+  const newRange = document.createRange();
+  newRange.setStart(afterNode, 1);
   newRange.collapse(true);
   sel.removeAllRanges();
   sel.addRange(newRange);
@@ -2157,7 +2407,7 @@ function renderMain() {
           <button class="block-type-btn" onclick="addBlock('${step.id}','table')"><span>📊</span>Table</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','image')"><span>🖼</span>Image</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','video')"><span>🎬</span>Video</button>
-          <button class="block-type-btn" onclick="addBlock('${step.id}','attachment')"><span>📎</span>Attachment</button>
+          <button class="block-type-btn" onclick="openMultiAttachModal('${step.id}')"><span>📎</span>Attachment</button>
           <button class="block-type-btn" onclick="addBlock('${step.id}','highlight')"><span>⚡</span>Highlight</button>
         </div>
       </div>
@@ -2247,6 +2497,9 @@ function renderBlock(stepId, block) {
           <button class="btn btn-ghost btn-sm" onclick="triggerAttachmentUpload('${stepId}','${block.id}')">Replace</button>
           <button class="btn btn-ghost btn-sm" onclick="clearAttachment('${stepId}','${block.id}')">Remove</button>
         </div>
+        <input class="attach-desc-input" type="text" placeholder="Descreva este arquivo (opcional)..."
+          value="${esc(block.description||'')}"
+          oninput="updateAttachmentDesc('${stepId}','${block.id}',this.value)">
       </div>`;
     } else {
       bodyHtml = `<div>
